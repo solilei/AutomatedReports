@@ -634,7 +634,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 12. Roster upload step 2: column choice, parsing, validation, remembered columns
+### [x] 12. Roster upload step 2: column choice, parsing, validation, remembered columns
 
 **Files**
 - Change `roster/services.py`, `roster/views.py`, `roster/urls.py`, `roster/forms.py`.
