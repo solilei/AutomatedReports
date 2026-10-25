@@ -66,7 +66,7 @@ class ExportBuilderTests(TestCase):
         self.assertTrue(ws["D1"].font.bold)
         self.assertEqual(ws["D1"].font.size, 18)
         self.assertEqual(ws["C2"].value, "Ground School Department")
-        self.assertTrue(ws["C2"].font.bold)
+        self.assertFalse(ws["C2"].font.bold)
         self.assertLessEqual({"A1:B3", "C2:I2"}, self.merges(ws))
         widths = {c: ws.column_dimensions[c].width for c in "ABCO"}
         self.assertEqual(widths, {"A": 3.82, "B": 29.73, "C": 8.36, "O": 6.73})
@@ -304,9 +304,19 @@ class ExportBuilderTests(TestCase):
 
     def test_title_rows_are_18pt_calibri(self):
         ws = self.sheet()
-        for ref in ("A1", "D1", "C2"):
+        for ref in ("A1", "D1"):
             self.assertEqual(ws[ref].font.size, 18, ref)
             self.assertEqual(ws[ref].font.name, "Calibri", ref)
+
+    def test_department_line_is_calibri_14_not_bold(self):
+        font = self.sheet()["C2"].font
+        self.assertEqual((font.name, font.size, bool(font.bold)), ("Calibri", 14, False))
+
+    def test_unacceptable_key_text_is_black(self):
+        ws = self.sheet()
+        for row in range(9, 13):
+            for col in "NO":
+                self.assertEqual(ws[f"{col}{row}"].font.color.rgb[-6:], "000000", f"{col}{row}")
 
     def test_all_other_text_is_calibri_12(self):
         make_score_set(self.bea, self.drill, self.group, {self.alice: scores(4)})

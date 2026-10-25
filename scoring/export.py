@@ -68,7 +68,6 @@ def build_group_report(group, export_date: date) -> Workbook:
     ws["D1"].font = Font(bold=True, size=14)
     ws.merge_cells("C2:I2")
     ws["C2"] = "Ground School Department"
-    ws["C2"].font = Font(bold=True)
 
     for row, text in enumerate(INSTRUCTIONS, start=4):
         ws[f"A{row}"] = text
@@ -156,6 +155,10 @@ def build_group_report(group, export_date: date) -> Workbook:
             font = copy(cell.font)
             font.name = "Calibri"
             font.sz = 18 if cell.row <= 3 else 12
+            if cell.coordinate == "C2":
+                font.sz, font.b = 14, False
+            if 9 <= cell.row <= 12 and cell.column in (14, 15):
+                font.color = "000000"
             cell.font = font
 
     ws.page_setup.orientation = "landscape"
