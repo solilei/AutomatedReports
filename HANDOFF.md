@@ -25,10 +25,19 @@
 - Change after Slice 21, at the user's request, committed and pushed at `4f04fff`: the course number is removed; the group number (`C216`) is the course, typed by the admin at upload. Each roster file holds one course, with no group column. See PLAN.md "Change after Slice 21". Migration `roster/0002` applied to `db.sqlite3`. Samples split into `samples/sample_roster_C216/C217/C218.xlsx` (the multi-course `sample_roster.xlsx` was removed with `git rm`). Roster tests updated to match.
 - Also at the user's request, committed and pushed at `fe1855a`: nav spacing, bigger centred sign-in page with a Show/Hide password button, score dropdowns show 1–5 only (legend above the grid), and a first save fills blank cells with 3 (later saves keep blanks and the warning). Four `test_grid_save.py` tests were rewritten and five added for this. 254 tests pass; `check` and `makemigrations --check` are clean.
 - Slice 22 (Results page: `results` view in `scoring/views.py`, `groups/<number>/results/` URL, `scoring/results.html`, "Results" link in `group_detail.html`) committed and pushed at `9b09c39`. 11 new tests; 265 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 23 (Export workbook builder: `scoring/export.py` `build_group_report(group, export_date)`) written and tested, not yet committed. 16 new tests in `scoring/tests/test_export_builder.py`; 281 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md. A sample file from fake data was generated for the user to compare by hand (see Open problems).
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 23 (Export workbook builder) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 24 (Export download) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 23 is uncommitted; commit only if the user asks.
 ## Open problems
+- Slice 23: the layout has not been compared with the template in Excel or LibreOffice (tests inspect the workbook with openpyxl only). The user was given a sample file to open; their findings are pending. PLAN.md's manual check for the slice is still to do.
+- Slice 23: `test_export_builder.py` has 2 tests beyond PLAN.md's 14 (`test_borders_on_table`, `test_comments_skip_inactive_cadets_and_blank_comments`).
+- Slice 23: the Total column is an `=SUM(...)` formula with no cached value, so a viewer that doesn't recalculate shows it blank. No-data rows write the text `no data` in column O.
+- Slice 23: comments are sorted case-insensitively by instructor name then subject name. Comment lines are wrapped and top-aligned, but row height isn't set, so Excel may not auto-grow merged rows for long comments.
+- Slice 23: PLAN.md leaves the fill on merged pairs open; I fill both cells of each merged range. The header cell in `N8` stores a `date` value, so `DD/MM/YYYY` is a display format only.
+- Slice 23: `build_group_report` runs `group_results` (2 queries), one `ScoreSet` query and one `CadetScore` query for comments; it is untested for query count.
+- Slice 23: the export header "Course" shows the group number (per the change after Slice 21).
 - After Slice 21 (`4f04fff`, `fe1855a`): none of the new behaviour has been checked in a browser (tests only): group-number box on the upload page, the columns page without a group column, the Show/Hide password button, the centred sign-in page, nav spacing, 1–5 dropdowns with the legend, and the first-save fill with 3.
 - First save fills blanks with 3 only when the instructor has no score set yet for that group and subject. Later saves keep blanks blank and still show the blank warning with confirm. Say if blanks should always fill with 3.
 - A first save with every cell blank is still refused ("Enter at least one score before saving.").

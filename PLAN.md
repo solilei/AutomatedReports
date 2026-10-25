@@ -1114,7 +1114,7 @@ def group_results(group) -> list[CadetResult]
 
 ---
 
-### [ ] 23. Export workbook builder
+### [x] 23. Export workbook builder
 
 **Files**
 - Create `scoring/export.py`.
