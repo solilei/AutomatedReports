@@ -1021,7 +1021,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 21. Results calculation (pure logic)
+### [x] 21. Results calculation (pure logic)
 
 **Files**
 - Create `scoring/results.py`.

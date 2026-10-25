@@ -21,9 +21,10 @@
 - Slice 18 (Group lifecycle: `roster/lifecycle.py` `change_status`/`delete_group`, views `group_lock`/`group_unlock`/`group_archive`/`group_unarchive`/`group_delete` and URLs, admin buttons in `group_detail.html`, `group_delete_confirm.html`) committed and pushed at `842bfb6`. 16 new tests; 223 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 19 (Cadet management: `cadet_list`/`cadet_delete` in `roster/views.py`, URLs, `cadet_list.html`, `cadet_delete_confirm.html`, "Manage cadets" link in `group_detail.html`) committed and pushed at `95935ed`. 5 new tests; 228 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 20 ("My score sets" and admin score-set views: `my_score_sets`/`group_score_sets`/`score_set_detail` in `scoring/views.py`, URLs, three templates, "My score sets" nav link, admin "All score sets" link in `group_detail.html`) committed and pushed at `f0a140e`. 5 new tests; 233 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 21 (Results calculation: `scoring/results.py` `round_average`/`CadetResult`/`group_results`, `BAND_HEX`, `FLAG_BELOW`) not committed. 15 new tests; 248 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 21 (Results calculation, pure logic) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 22 (Results page) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
@@ -110,6 +111,8 @@
 - Slice 20: `score_set_detail` is admin-only, so an instructor gets 403 even for their own set (they use the grid via "Open"). `group_score_sets` and `score_set_detail` don't hide archived groups from admins.
 - Slice 20: "My score sets" shows archived groups' sets to admins only; its "Open" link goes to the grid, which 404s for instructors on archived groups, so they are filtered out up front.
 - Slice 20: `score_set_detail` numbers rows 1..n in display order (active cadets first, then inactive), not by the grid's numbering, so a row's No. can differ from the one the instructor saw.
+- Slice 21: `test_results.py` has 2 tests beyond PLAN.md's 13 (`test_results_ordered_and_numbered`, `test_other_group_scores_ignored`). Nothing uses `group_results` yet.
+- Slice 21: `group_results` takes cadet ids from the 1st query and filters rows with `cadet__in=cadets` (a list of objects), so Django inlines the ids; fine for roster sizes, but a very large group would hit SQLite's variable limit.
 - Local dev DB: `db.sqlite3` is migrated and holds account `testadmin`, subject `Drill`, and groups C216/C217/C218 (course 216.18) loaded via the services, not the UI, so there are no `ROSTER_UPLOADED` or subject-created events. Start the server with `MFA_REQUIRED=False python manage.py runserver 127.0.0.1:8000` to skip MFA (MFA is on by default).
 - `createadmin` is not atomic with its audit log: if the audit table is missing, the user is created but the command fails and the password is lost.
 ## Decisions made
@@ -117,4 +120,4 @@
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One course number per upload, typed by the admin each time (box starts empty).
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1 to 20 tests are frozen: don't modify test files unless the user asks.
+- Slice 1 to 21 tests are frozen: don't modify test files unless the user asks.
