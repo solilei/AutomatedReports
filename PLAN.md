@@ -499,7 +499,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 9. Subjects (model and admin management)
+### [x] 9. Subjects (model and admin management)
 
 **Files**
 - Create `scoring/models.py` (Subject only), `scoring/forms.py`, `scoring/views.py`, `scoring/urls.py`.
