@@ -15,9 +15,10 @@
 - Slice 12 (Roster upload step 2: `ColumnForm`, `parse_rows`/`check_groups`/`ParseResult` in `roster/services.py`, `roster:upload_columns` view and template, remembered columns, `roster:upload_preview` 404 stub) committed and pushed at `0809a76`. 20 new tests; 141 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 13 (Roster upload step 3: `GroupChange`/`build_preview`/`apply_upload` in `roster/services.py`, `roster:upload_preview` view and `upload_preview.html` replacing the 404 stub) committed and pushed at `5d37e26`. 18 new tests; 159 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 14 (Scoring models: `scoring/attributes.py`, `ScoreSet` and `CadetScore` in `scoring/models.py`, migration `0002`, `scoring/tests/helpers.py` `make_score_set`) committed and pushed at `e3a7bdb`. 7 new tests; 166 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 15 (Score grid view: `scoring/access.py` `get_visible_group`, `score_go`/`score_grid` views and URLs, `score_grid.html`) committed and pushed at `fdb084e`. 12 new tests; 178 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 15 (Score grid: view GET) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 16 (Score grid: save POST, blank warning, audit) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
@@ -68,9 +69,16 @@
 - Slice 14: `ScoreSet.instructor` and `.subject` are `PROTECT`, so deleting a user or subject with score sets fails; slices 7/9 never delete either, but any future delete UI must handle `ProtectedError`.
 - Slice 14: the check constraint uses `condition=` (Django 5.2 renamed `check=`); the PLAN.md wording doesn't say which.
 - Slice 14: `test_models.py` has no tests beyond PLAN.md's 7; the out-of-range test loops over all six attributes with `subTest`.
+- Slice 15: `test_grid_view.py` has 3 tests beyond PLAN.md's 9 (`test_editable_group_has_save_button`, `test_score_go_missing_or_invalid_subject_redirects_home`, `test_login_required`).
+- Slice 15: the grid has not been checked in a browser (tests only); it has no CSS for `.added-badge`, `.banner` or `.score-grid` yet.
+- Slice 15: `score_go` redirects to `home` for a missing or invalid subject; Slice 17 must change that to `roster:group_detail`. `score_go` also 404s for unknown or (for instructors) archived groups before checking the subject.
+- Slice 15: `score_grid` does not hide inactive subjects (a direct URL for one still loads); the dropdown that hides them comes in Slice 17.
+- Slice 15: the views have no decorator; login is enforced by `AccessGateMiddleware` (covered by `test_login_required`).
+- Slice 15: the view passes `rows` (dicts with `number`, `cadet`, `added`, `cells`, `comment`) to the template; Slice 16 re-renders with submitted values and will need to extend this structure.
+- Slice 15: "Last saved" shows `updated_at` as `Y-m-d H:i` in the display time zone.
 ## Decisions made
 - Django 5.2 LTS + openpyxl, pyotp, segno, msal (approved). PLAN.md D1–D18 accepted.
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One course number per upload, typed by the admin each time (box starts empty).
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 and 14 tests are frozen: don't modify test files unless the user asks.
+- Slice 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 and 15 tests are frozen: don't modify test files unless the user asks.
