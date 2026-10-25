@@ -1,11 +1,17 @@
 from django.conf import settings
-from django.contrib.auth import login, logout
+from django.contrib import messages
+from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_not_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
+
+from audit import actions
+from audit.service import log
+
+from .forms import PasswordSetForm
 
 
 @login_not_required
@@ -46,3 +52,25 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return redirect("accounts:login")
+
+
+def pending(request):
+    if request.user.is_approved:
+        return redirect("home")
+    return render(request, "accounts/pending.html")
+
+
+def password_set(request):
+    user = request.user
+    if not user.must_change_password:
+        return redirect("home")
+    form = PasswordSetForm(user, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        user.must_change_password = False
+        user.save(update_fields=["must_change_password"])
+        update_session_auth_hash(request, user)
+        log(user, actions.ACCOUNT_PASSWORD_SET, f"{user.username} set their password")
+        messages.success(request, "Password set.")
+        return redirect("home")
+    return render(request, "accounts/password_set.html", {"form": form})

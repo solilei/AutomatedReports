@@ -284,7 +284,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 5. Access gate (pending approval, forced password change) and role decorator
+### [x] 5. Access gate (pending approval, forced password change) and role decorator
 
 **Files**
 - Create `accounts/middleware.py`, `accounts/decorators.py`, `accounts/forms.py`.
