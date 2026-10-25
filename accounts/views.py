@@ -6,7 +6,7 @@ from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_not_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponseBadRequest
+from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 from audit import actions
 from audit.service import log
 
-from . import mfa, services
+from . import mfa, microsoft, services
 from .decorators import admin_required
 from .forms import PasswordSetForm, UserCreateForm
 from .models import User
@@ -293,3 +293,64 @@ def user_reset(request, pk):
         details={"username": target.username},
     )
     return _no_store(render(request, "accounts/user_reset_done.html", {"account": target, "password": password}))
+
+
+def _microsoft_error(request, message, status):
+    return render(request, "accounts/microsoft_error.html", {"message": message}, status=status)
+
+
+@login_not_required
+def microsoft_login(request):
+    if settings.LOGIN_MODE == "local":
+        raise Http404
+    app = microsoft.build_msal_app()
+    flow = app.initiate_auth_code_flow(microsoft.SCOPES, redirect_uri=settings.ENTRA_REDIRECT_URI)
+    request.session["entra_flow"] = flow
+    return redirect(flow["auth_uri"])
+
+
+@login_not_required
+def microsoft_callback(request):
+    if settings.LOGIN_MODE == "local":
+        raise Http404
+    flow = request.session.pop("entra_flow", None)
+    if flow is None:
+        return _microsoft_error(request, "Sign-in session expired, please try again.", 400)
+    try:
+        result = microsoft.build_msal_app().acquire_token_by_auth_code_flow(flow, request.GET.dict())
+    except ValueError:
+        return _microsoft_error(request, "Microsoft sign-in failed.", 400)
+    if "error" in result:
+        return _microsoft_error(request, "Microsoft sign-in failed.", 400)
+    claims = result["id_token_claims"]
+    if claims.get("tid") != settings.ENTRA_TENANT_ID:
+        return _microsoft_error(request, "Accounts from other organisations are not accepted.", 403)
+
+    user = User.objects.filter(entra_object_id=claims["oid"]).first()
+    if user is None:
+        username = claims.get("preferred_username") or claims["oid"]
+        if User.objects.filter(username=username).exists():
+            return _microsoft_error(
+                request, f"An account named {username} already exists. Ask an administrator.", 409
+            )
+        user = User(
+            username=username,
+            full_name=claims.get("name", ""),
+            auth_source=User.Source.MICROSOFT,
+            entra_object_id=claims["oid"],
+            is_approved=False,
+            role=User.Role.INSTRUCTOR,
+        )
+        user.set_unusable_password()
+        user.save()
+        log(
+            None,
+            actions.ACCOUNT_CREATED,
+            f"Account '{username}' created on first Microsoft sign-in",
+            details={"username": username, "role": user.role},
+            actor_label="Microsoft first sign-in",
+        )
+    if not user.is_active:
+        return _microsoft_error(request, "This account has been deactivated.", 403)
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    return redirect("home")

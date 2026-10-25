@@ -111,6 +111,17 @@ LOGIN_MODE = os.environ.get("LOGIN_MODE", "local")
 if LOGIN_MODE not in ("local", "microsoft", "both"):
     raise ImproperlyConfigured(f"LOGIN_MODE must be local, microsoft or both, not '{LOGIN_MODE}'")
 
+ENTRA_TENANT_ID = os.environ.get("ENTRA_TENANT_ID", "")
+ENTRA_CLIENT_ID = os.environ.get("ENTRA_CLIENT_ID", "")
+ENTRA_CLIENT_SECRET = os.environ.get("ENTRA_CLIENT_SECRET", "")
+ENTRA_REDIRECT_URI = os.environ.get("ENTRA_REDIRECT_URI", "")
+if LOGIN_MODE in ("microsoft", "both") and not all(
+    [ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET, ENTRA_REDIRECT_URI]
+):
+    raise ImproperlyConfigured(
+        "Microsoft sign-in needs ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET and ENTRA_REDIRECT_URI"
+    )
+
 MFA_REQUIRED = env_bool("MFA_REQUIRED", True)
 if not DEBUG:
     MFA_REQUIRED = True

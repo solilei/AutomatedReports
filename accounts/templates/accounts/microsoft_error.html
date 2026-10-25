@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Microsoft sign-in{% endblock %}
+{% block content %}
+<h1>Microsoft sign-in</h1>
+<p>{{ message }}</p>
+<p><a href="{% url 'accounts:login' %}">Back to sign in</a></p>
+{% endblock %}

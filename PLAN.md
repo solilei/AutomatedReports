@@ -450,7 +450,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 8. Microsoft Entra ID sign-in (built, off by default)
+### [x] 8. Microsoft Entra ID sign-in (built, off by default)
 
 **Files**
 - Create `accounts/microsoft.py`.
