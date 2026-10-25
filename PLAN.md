@@ -87,7 +87,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ## Slices
 
-### [ ] 1. Project scaffold, settings, custom user model
+### [x] 1. Project scaffold, settings, custom user model
 
 **Files**
 - Create `requirements.txt` (exact content in Conventions).
