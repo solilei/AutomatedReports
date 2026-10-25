@@ -26,7 +26,7 @@
 {% endif %}
 {% if request.user.is_admin %}
 <h2>Manage group</h2>
-<p><a href="{% url 'roster:cadet_list' group.number %}">Manage cadets</a></p>
+<p><a href="{% url 'roster:cadet_list' group.number %}">Manage cadets</a> · <a href="{% url 'scoring:group_score_sets' group.number %}">All score sets</a></p>
 {% if group.status == "active" %}
 <form method="post" action="{% url 'roster:group_lock' group.number %}">{% csrf_token %}<button type="submit">Lock</button></form>
 {% elif group.status == "locked" %}

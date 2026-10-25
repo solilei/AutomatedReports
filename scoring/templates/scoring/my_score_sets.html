@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}My score sets{% endblock %}
+{% block content %}
+<h1>My score sets</h1>
+{% if score_sets %}
+<table>
+  <thead><tr><th>Group</th><th>Subject</th><th>Last saved</th><th></th></tr></thead>
+  <tbody>
+    {% for score_set in score_sets %}
+    <tr>
+      <td>{{ score_set.group.number }}</td>
+      <td>{{ score_set.subject.name }}</td>
+      <td>{{ score_set.updated_at|date:"Y-m-d H:i" }}</td>
+      <td><a href="{% url 'scoring:score_grid' score_set.group.number score_set.subject_id %}">Open</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No score sets yet.</p>
+{% endif %}
+{% endblock %}

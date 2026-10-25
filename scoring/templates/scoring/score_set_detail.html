@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Score set{% endblock %}
+{% block content %}
+<h1>{{ score_set.subject.name }} — group {{ score_set.group.number }}</h1>
+<p>Instructor: {{ score_set.instructor.display_name }}{% if not score_set.instructor.is_active %} (deactivated){% endif %} · Last saved {{ score_set.updated_at|date:"Y-m-d H:i" }}</p>
+<p><a href="{% url 'scoring:group_score_sets' score_set.group.number %}">Back to score sets</a></p>
+<table>
+  <thead>
+    <tr>
+      <th>No.</th><th>Name</th>
+      {% for field, label, header in attributes %}<th>{{ label }}</th>{% endfor %}
+      <th>Comment</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.number }}</td>
+      <td>{{ row.cadet.name }}{% if not row.cadet.is_active %} (inactive){% endif %}</td>
+      {% for value in row.values %}<td>{% if value is None %}—{% else %}{{ value }}{% endif %}</td>{% endfor %}
+      <td>{{ row.comment }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

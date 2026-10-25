@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Score sets for {{ group.number }}{% endblock %}
+{% block content %}
+<h1>Score sets for group {{ group.number }}</h1>
+<p><a href="{% url 'roster:group_detail' group.number %}">Back to group</a></p>
+{% if score_sets %}
+<table>
+  <thead><tr><th>Instructor</th><th>Subject</th><th>Last saved</th><th></th></tr></thead>
+  <tbody>
+    {% for score_set in score_sets %}
+    <tr>
+      <td>{{ score_set.instructor.display_name }}{% if not score_set.instructor.is_active %} (deactivated){% endif %}</td>
+      <td>{{ score_set.subject.name }}</td>
+      <td>{{ score_set.updated_at|date:"Y-m-d H:i" }}</td>
+      <td><a href="{% url 'scoring:score_set_detail' score_set.pk %}">View</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No score sets yet.</p>
+{% endif %}
+{% endblock %}

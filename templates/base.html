@@ -9,7 +9,7 @@
 <header>
   <strong>Cadet Soft Skills</strong>
   {% if user.is_authenticated %}
-  <nav><a href="{% url 'home' %}">Home</a>{% if user.is_admin %} <a href="{% url 'roster:group_list' %}">Groups</a> <a href="{% url 'accounts:user_list' %}">Accounts</a> <a href="{% url 'scoring:subject_list' %}">Subjects</a> <a href="{% url 'roster:upload' %}">Upload roster</a>{% endif %}</nav>
+  <nav><a href="{% url 'home' %}">Home</a> <a href="{% url 'scoring:my_score_sets' %}">My score sets</a>{% if user.is_admin %} <a href="{% url 'roster:group_list' %}">Groups</a> <a href="{% url 'accounts:user_list' %}">Accounts</a> <a href="{% url 'scoring:subject_list' %}">Subjects</a> <a href="{% url 'roster:upload' %}">Upload roster</a>{% endif %}</nav>
   <span>{{ user.display_name }}</span>
   <form method="post" action="{% url 'accounts:logout' %}">
     {% csrf_token %}

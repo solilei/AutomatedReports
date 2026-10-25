@@ -996,7 +996,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 20. "My score sets" and admin score-set views
+### [x] 20. "My score sets" and admin score-set views
 
 **Files**
 - Change `scoring/views.py`, `scoring/urls.py`, `templates/base.html` (nav `My score sets`), `roster/templates/roster/group_detail.html` (admin link "All score sets").

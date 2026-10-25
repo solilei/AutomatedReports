@@ -8,6 +8,8 @@ from accounts.decorators import admin_required
 from audit import actions
 from audit.service import log
 
+from roster.models import Group
+
 from .access import get_visible_group
 from . import services
 from .attributes import ATTRIBUTES, BLANK_COUNTS_AS, SCORE_CHOICES
@@ -154,3 +156,45 @@ def score_grid(request, number, subject_id):
         services.save_score_set(request.user, subject, group, data)
     messages.success(request, "Saved.")
     return redirect("scoring:score_grid", number=group.number, subject_id=subject.pk)
+
+
+def my_score_sets(request):
+    score_sets = ScoreSet.objects.filter(instructor=request.user).select_related("group", "subject")
+    if not request.user.is_admin:
+        score_sets = score_sets.exclude(group__status=Group.Status.ARCHIVED)
+    return render(
+        request, "scoring/my_score_sets.html", {"score_sets": score_sets.order_by("-updated_at")}
+    )
+
+
+@admin_required
+def group_score_sets(request, number):
+    group = get_object_or_404(Group, number=number)
+    score_sets = group.score_sets.select_related("instructor", "subject").order_by("-updated_at")
+    return render(
+        request, "scoring/group_score_sets.html", {"group": group, "score_sets": score_sets}
+    )
+
+
+@admin_required
+def score_set_detail(request, pk):
+    score_set = get_object_or_404(
+        ScoreSet.objects.select_related("group", "subject", "instructor"), pk=pk
+    )
+    rows = score_set.rows.select_related("cadet").order_by(
+        "-cadet__is_active", "cadet__position", "cadet__pk"
+    )
+    table = [
+        {
+            "number": number_,
+            "cadet": row.cadet,
+            "values": [getattr(row, field) for field, _label, _header in ATTRIBUTES],
+            "comment": row.comment,
+        }
+        for number_, row in enumerate(rows, start=1)
+    ]
+    return render(
+        request,
+        "scoring/score_set_detail.html",
+        {"score_set": score_set, "attributes": ATTRIBUTES, "rows": table},
+    )
