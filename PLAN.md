@@ -1081,7 +1081,7 @@ def group_results(group) -> list[CadetResult]
 
 ---
 
-### [ ] 22. Results page
+### [x] 22. Results page
 
 **Files**
 - Change `scoring/views.py`, `scoring/urls.py`, `roster/templates/roster/group_detail.html` (link "Results").

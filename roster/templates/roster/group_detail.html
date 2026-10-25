@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Group {{ group.number }}</h1>
 <p>{{ group.get_status_display }} · {{ active_count }} active cadet{{ active_count|pluralize }}</p>
+<p><a href="{% url 'scoring:results' group.number %}">Results</a></p>
 {% if subjects %}
 <form method="get" action="{% url 'scoring:score_go' group.number %}">
   <label for="subject">Subject</label>

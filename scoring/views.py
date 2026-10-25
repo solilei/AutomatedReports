@@ -12,9 +12,10 @@ from roster.models import Group
 
 from .access import get_visible_group
 from . import services
-from .attributes import ATTRIBUTES, BLANK_COUNTS_AS, SCORE_CHOICES
+from .attributes import ATTRIBUTE_FIELDS, ATTRIBUTES, BLANK_COUNTS_AS, SCORE_CHOICES
 from .forms import SubjectForm
 from .models import ScoreSet, Subject
+from .results import BAND_HEX, group_results
 
 
 @admin_required
@@ -202,4 +203,22 @@ def score_set_detail(request, pk):
         request,
         "scoring/score_set_detail.html",
         {"score_set": score_set, "attributes": ATTRIBUTES, "rows": table},
+    )
+
+
+def results(request, number):
+    group = get_visible_group(request, number)
+    return render(
+        request,
+        "scoring/results.html",
+        {
+            "group": group,
+            "rows": [
+                (result, [result.averages[field] for field in ATTRIBUTE_FIELDS] if result.averages else None)
+                for result in group_results(group)
+            ],
+            "attributes": ATTRIBUTES,
+            "score_set_count": group.score_sets.count(),
+            "key": [(value, BAND_HEX[value], label) for value, label in SCORE_CHOICES],
+        },
     )

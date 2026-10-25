@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Results for {{ group.number }}{% endblock %}
+{% block content %}
+<h1>Results for group {{ group.number }}</h1>
+<p><a href="{% url 'roster:group_detail' group.number %}">Back to group</a></p>
+<p>Based on {{ score_set_count }} saved score set{{ score_set_count|pluralize }}.</p>
+<ul class="band-key">
+  {% for value, hex, label in key %}
+  <li><span class="band-{{ value }}" style="background:#{{ hex }}">&nbsp;&nbsp;&nbsp;</span> {{ label }}</li>
+  {% endfor %}
+</ul>
+<table>
+  <thead>
+    <tr>
+      <th>No.</th><th>Name</th>
+      {% for _field, label, _header in attributes %}<th>{{ label }}</th>{% endfor %}
+      <th>Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for result, values in rows %}
+    {% if values is None %}
+    <tr>
+      <td>{{ result.number }}</td><td>{{ result.cadet.name }}</td>
+      <td colspan="7">no data</td>
+    </tr>
+    {% else %}
+    <tr{% if result.flagged %} class="flagged"{% endif %}>
+      <td>{{ result.number }}</td>
+      <td>{{ result.cadet.name }}{% if result.flagged %} <span class="flag">Below C – HGS consultation</span>{% endif %}</td>
+      {% for value in values %}<td class="band-{{ value }}">{{ value }}</td>{% endfor %}
+      <td>{{ result.total }}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
