@@ -3,7 +3,7 @@
 {% block content %}
 <p><a href="{% url 'roster:group_detail' group.number %}">← Group {{ group.number }}</a></p>
 <h1>{{ group.number }} – {{ subject.name }}</h1>
-<p>Course {{ group.course_number }} · Subject: {{ subject.name }} ·
+<p>Subject: {{ subject.name }} ·
   {% if score_set %}Last saved: {{ score_set.updated_at|date:"Y-m-d H:i" }}{% else %}Not saved yet{% endif %}</p>
 {% if not editable %}<p class="banner">This group is {{ group.status }} and read-only.</p>{% endif %}
 {% if errors %}<ul class="errorlist">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}

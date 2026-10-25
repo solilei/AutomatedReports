@@ -3,12 +3,22 @@ from django.conf import settings
 from openpyxl.utils import get_column_letter
 
 from .models import RosterColumnPreference
-from .services import RosterError, read_sheet
+from .services import GROUP_NUMBER_RE, RosterError, read_sheet
 
 
 class UploadForm(forms.Form):
     file = forms.FileField()
-    course_number = forms.CharField(max_length=50, strip=True)
+    group_number = forms.CharField(
+        label="Group number (e.g. C216)", max_length=20, strip=True
+    )
+
+    def clean_group_number(self):
+        number = self.cleaned_data["group_number"].upper()
+        if not GROUP_NUMBER_RE.fullmatch(number):
+            raise forms.ValidationError(
+                "Use only letters, digits, '.', '_' and '-' (max 20 characters)."
+            )
+        return number
 
     def clean_file(self):
         file = self.cleaned_data["file"]
@@ -30,7 +40,6 @@ class UploadForm(forms.Form):
 
 
 class ColumnForm(forms.Form):
-    group_col = forms.ChoiceField(label="Group column")
     name_col = forms.ChoiceField(label="Name column")
     id_col = forms.ChoiceField(label="Cadet ID column", required=False)
 
@@ -40,13 +49,11 @@ class ColumnForm(forms.Form):
             (str(i), h or f"(column {get_column_letter(i + 1)}, no header)")
             for i, h in enumerate(headers)
         ]
-        self.fields["group_col"].choices = choices
         self.fields["name_col"].choices = choices
         self.fields["id_col"].choices = [("", "— none —")] + choices
         pref = RosterColumnPreference.get()
         normalised = [h.strip().lower() for h in headers]
         for field, remembered in [
-            ("group_col", pref.group_header),
             ("name_col", pref.name_header),
             ("id_col", pref.id_header),
         ]:
@@ -56,9 +63,7 @@ class ColumnForm(forms.Form):
 
     def clean(self):
         data = super().clean()
-        group, name, id_col = (data.get(k) for k in ("group_col", "name_col", "id_col"))
-        if group and name and (group == name or (id_col and id_col in (group, name))):
-            raise forms.ValidationError(
-                "Group, Name and Cadet ID must be different columns."
-            )
+        name, id_col = data.get("name_col"), data.get("id_col")
+        if name and id_col == name:
+            raise forms.ValidationError("Name and Cadet ID must be different columns.")
         return data

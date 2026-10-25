@@ -85,6 +85,12 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
+## Change after Slice 21: one course per file (user decision)
+
+The course number is gone. A group's number (`C216`) is the course. Each roster file holds one course only, and the admin types the group number at upload (stored uppercased in `RosterUpload.group_number`). There is no group column: `ColumnForm` has `name_col` and `id_col` only, `parse_rows(rows, group_number, name_col, id_col=None)` puts every row in that one group, and `Group.course_number`, `RosterUpload.course_number`, `RosterUpload.group_col`, `RosterColumnPreference.group_header` and the `GroupChange.course_old/course_new` fields were removed (migration `roster/0002`). `GROUP_COURSE_CHANGED` is no longer logged (the constant stays so the audit choices don't change). The slice texts below that mention a course number, a Course Group column or several groups per file are superseded by this. The export header "Course" (Slices 23 and 24) uses the group number. Samples are `samples/sample_roster_C216.xlsx`, `_C217`, `_C218`.
+
+---
+
 ## Slices
 
 ### [x] 1. Project scaffold, settings, custom user model
@@ -1120,7 +1126,7 @@ def group_results(group) -> list[CadetResult]
 | Cells | Content | Format |
 |---|---|---|
 | Column widths | A 3.82, B 29.73, C–N 8.36, O 6.73 | |
-| A1:B3 merged | `Course {course_number}` | bold, vertical center |
+| A1:B3 merged | `Course {group.number}` | bold, vertical center |
 | D1 | `Cadet Soft Skills Report` | bold, size 14 |
 | C2:I2 merged | `Ground School Department` | bold |
 | A4 | `Please rate your observations of individual cadet from 1 to 5 using the grading system and upload in appropriate GSH shared folder for your group of subjects.` | |

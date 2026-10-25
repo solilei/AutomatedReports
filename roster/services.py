@@ -55,24 +55,16 @@ class ParseResult:
     errors: list[str] = field(default_factory=list)
 
 
-def parse_rows(rows, group_col, name_col, id_col=None):
+def parse_rows(rows, group_number, name_col, id_col=None):
     result = ParseResult()
     seen = {}
     for index, row in enumerate(rows):
         number = index + 2
-        group = row[group_col].strip().upper()
         name = " ".join(row[name_col].split())
         external_id = row[id_col].strip() if id_col is not None else ""
-        if not (group or name or external_id):
+        if not (name or external_id):
             continue
         problems = []
-        if not group:
-            problems.append(f"Row {number}: group is blank.")
-        elif not GROUP_NUMBER_RE.fullmatch(group):
-            problems.append(
-                f"Row {number}: group number '{group}' may only contain letters, digits, "
-                "'.', '_' and '-' (max 20 characters)."
-            )
         if not name:
             problems.append(f"Row {number}: name is blank.")
         if id_col is not None and not external_id:
@@ -80,10 +72,10 @@ def parse_rows(rows, group_col, name_col, id_col=None):
         if problems:
             result.errors.extend(problems)
             continue
-        result.groups.setdefault(group, []).append(
+        result.groups.setdefault(group_number, []).append(
             {"name": name, "external_id": external_id, "row": number}
         )
-        key = (group, external_id if id_col is not None else name)
+        key = (group_number, external_id if id_col is not None else name)
         seen.setdefault(key, []).append(number)
     for (group, value), numbers in seen.items():
         if len(numbers) < 2:
@@ -139,8 +131,6 @@ def check_groups(group_numbers, id_mode):
 class GroupChange:
     number: str
     is_new: bool
-    course_old: str | None
-    course_new: str
     added: list[str] = field(default_factory=list)
     deactivated: list[str] = field(default_factory=list)
     reactivated: list[str] = field(default_factory=list)
@@ -157,8 +147,6 @@ def _diff_group(upload, number, entries, group):
     change = GroupChange(
         number=number,
         is_new=group is None,
-        course_old=group.course_number if group else None,
-        course_new=upload.course_number,
     )
     existing = {}
     if group is not None:
@@ -231,26 +219,11 @@ def apply_upload(upload, actor, actor_label=None):
             if change.is_new:
                 group = Group.objects.create(
                     number=number,
-                    course_number=upload.course_number,
                     identity_mode="id" if id_mode else "name",
                 )
-                event(
-                    actions.GROUP_CREATED,
-                    f"Group {number} created (course {upload.course_number})",
-                    course_number=upload.course_number,
-                )
+                event(actions.GROUP_CREATED, f"Group {number} created")
             else:
                 group = Group.objects.get(number=number)
-                if group.course_number != upload.course_number:
-                    old = group.course_number
-                    group.course_number = upload.course_number
-                    group.save(update_fields=["course_number"])
-                    event(
-                        actions.GROUP_COURSE_CHANGED,
-                        f"Group {number} course changed from {old} to {upload.course_number}",
-                        old=old,
-                        new=upload.course_number,
-                    )
             for kind, cadet, entry, position in steps:
                 if kind == "add":
                     cadet = Cadet.objects.create(

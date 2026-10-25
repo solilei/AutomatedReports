@@ -12,7 +12,7 @@ class GroupTests(TestCase):
     def test_group_number_unique(self):
         make_group("C216")
         with self.assertRaises(IntegrityError), transaction.atomic():
-            Group.objects.create(number="C216", course_number="1", identity_mode="name")
+            Group.objects.create(number="C216", identity_mode="name")
 
     def test_is_editable_only_when_active(self):
         self.assertTrue(make_group("A1", status="active").is_editable)
@@ -62,7 +62,6 @@ class ColumnPreferenceTests(TestCase):
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(second.name_header, "Cadet")
         self.assertEqual(RosterColumnPreference.objects.count(), 1)
-        self.assertEqual(second.group_header, "")
         self.assertEqual(second.id_header, "")
 
 

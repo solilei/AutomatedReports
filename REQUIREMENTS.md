@@ -80,8 +80,8 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 - [ ] After upload, the site shows the file's header row and the admin picks the Group column and the Name column
 - [ ] The site remembers the last column choice and pre-selects it next time
 - [ ] If the roster has a cadet ID column, the admin can choose it as the cadet identifier
-- [ ] One file can contain several groups; each distinct group number becomes or updates a group
-- [ ] Admin types the course number at upload time; it is stored on each group created or updated by that upload
+- [ ] One file contains one course only; the file's cadets all belong to the one group the admin names
+- [ ] Admin types the group number (e.g. `C216`, which is also the course) at upload time; the file has no group column
 
 ### Cadet identity
 - [ ] If an ID column is chosen, cadets are identified by ID and displayed by name
@@ -98,7 +98,6 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 ## 5. Groups
 
 - [ ] A group's number (e.g. `C216`) is unique and never reused; it is the group's key
-- [ ] Each group stores its course number (for the export header)
 - [ ] Group status: **active**, **locked**, or **archived**
 - [ ] Group selection is a dropdown of active and locked groups (archived groups hidden)
 
@@ -156,7 +155,7 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 - [ ] Reproduces the Cadet Soft Skills Report template layout (title, department, instruction text, grading-system key, colours) with cells filled in
 - [ ] Sheet name is the group number (e.g. `C216`)
 - [ ] Header fields:
-  - [ ] Course: the course number stored on the group
+  - [ ] Course: the group number (e.g. `C216`)
   - [ ] Instructor: names of every instructor who contributed a score set
   - [ ] Subject: every subject included
   - [ ] Date: the export date

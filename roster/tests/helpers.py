@@ -5,7 +5,7 @@ from openpyxl import Workbook
 
 from roster.models import Cadet, Group
 
-SAMPLE_ROSTER = settings.BASE_DIR / "samples" / "sample_roster.xlsx"
+SAMPLE_ROSTER = settings.BASE_DIR / "samples" / "sample_roster_C216.xlsx"
 
 
 def make_xlsx(rows):
@@ -21,13 +21,11 @@ def make_xlsx(rows):
 def make_group(
     number="C216",
     cadets=("Alice Ng", "Bob Ray"),
-    course_number="216.18",
     status="active",
     identity_mode="name",
 ):
     group = Group.objects.create(
         number=number,
-        course_number=course_number,
         status=status,
         identity_mode=identity_mode,
     )

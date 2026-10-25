@@ -50,7 +50,6 @@ def delete_group(group, actor):
         if group.status != Status.ARCHIVED:
             return refusal("delete", group)
         details = {
-            "course_number": group.course_number,
             "cadets": group.cadets.count(),
             "score_sets": group.score_sets.count(),
         }

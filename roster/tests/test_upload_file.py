@@ -17,7 +17,7 @@ XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def xlsx_file(rows=None, name="roster.xlsx"):
-    rows = rows if rows is not None else [["Group", "Name"], ["C216", "Alice Ng"]]
+    rows = rows if rows is not None else [["Name", "ID"], ["Alice Ng", "1"]]
     return SimpleUploadedFile(name, make_xlsx(rows), content_type=XLSX_TYPE)
 
 
@@ -27,8 +27,8 @@ class UploadFileTests(TestCase):
         self.admin = make_user("boss", role="admin")
         self.client.force_login(self.admin)
 
-    def post(self, file, course_number="216.18"):
-        return self.client.post(URL, {"file": file, "course_number": course_number})
+    def post(self, file, group_number="C216"):
+        return self.client.post(URL, {"file": file, "group_number": group_number})
 
     def test_instructor_forbidden(self):
         self.client.force_login(make_user("inst"))
@@ -42,7 +42,7 @@ class UploadFileTests(TestCase):
         self.assertNotContains(self.client.get(reverse("home")), URL)
 
     def test_rejects_non_xlsx_extension(self):
-        file = SimpleUploadedFile("roster.csv", b"Group,Name\nC216,Alice\n")
+        file = SimpleUploadedFile("roster.csv", b"Name,ID\nAlice,1\n")
         response = self.post(file)
         self.assertContains(response, "Only .xlsx files are accepted.")
         self.assertEqual(RosterUpload.objects.count(), 0)
@@ -75,25 +75,32 @@ class UploadFileTests(TestCase):
                 self.assertContains(response, "The first row must contain column headers.")
         self.assertEqual(RosterUpload.objects.count(), 0)
 
-    def test_requires_course_number(self):
+    def test_requires_group_number(self):
         for value in ("", "   "):
             with self.subTest(value=value):
-                response = self.post(xlsx_file(), course_number=value)
+                response = self.post(xlsx_file(), group_number=value)
                 self.assertEqual(response.status_code, 200)
-                self.assertTrue(response.context["form"].errors["course_number"])
+                self.assertTrue(response.context["form"].errors["group_number"])
         self.assertEqual(RosterUpload.objects.count(), 0)
 
-    def test_course_number_starts_empty_after_previous_upload(self):
+    def test_rejects_invalid_group_number(self):
+        for value in ("C 216", "C" * 21, "C/216"):
+            with self.subTest(value=value):
+                response = self.post(xlsx_file(), group_number=value)
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.context["form"].errors["group_number"])
+        self.assertEqual(RosterUpload.objects.count(), 0)
+
+    def test_group_number_starts_empty_after_previous_upload(self):
         self.assertEqual(self.post(xlsx_file()).status_code, 302)
         response = self.client.get(URL)
         self.assertEqual(response.status_code, 200)
-        self.assertIsNone(response.context["form"]["course_number"].value())
-        self.assertNotContains(response, "216.18")
+        self.assertIsNone(response.context["form"]["group_number"].value())
 
     def test_valid_upload_creates_staged_upload_and_redirects(self):
-        content = make_xlsx([["Group", "Name"], ["C216", "Alice Ng"]])
+        content = make_xlsx([["Name", "ID"], ["Alice Ng", "1"]])
         file = SimpleUploadedFile("roster.xlsx", content, content_type=XLSX_TYPE)
-        response = self.post(file, course_number="  216.18  ")
+        response = self.post(file, group_number="  c216  ")
         upload = RosterUpload.objects.get()
         self.assertRedirects(
             response, f"/roster/upload/{upload.pk}/columns/", fetch_redirect_response=False
@@ -101,7 +108,7 @@ class UploadFileTests(TestCase):
         self.assertEqual(upload.uploaded_by, self.admin)
         self.assertEqual(upload.original_filename, "roster.xlsx")
         self.assertEqual(bytes(upload.file_content), content)
-        self.assertEqual(upload.course_number, "216.18")
+        self.assertEqual(upload.group_number, "C216")
         self.assertEqual(upload.status, "uploaded")
 
     def test_valid_upload_logs_audit_event(self):
@@ -151,4 +158,5 @@ class ReadSheetTests(SimpleTestCase):
             headers,
             ["No.", "Cadet ID", "Full Name", "Course Group", "Sponsor", "Intake Date", "Email"],
         )
-        self.assertEqual(len(rows), 44)
+        self.assertEqual(len(rows), 15)
+        self.assertEqual({row[3] for row in rows}, {"C216"})

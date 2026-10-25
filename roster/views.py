@@ -163,7 +163,7 @@ def upload(request):
             uploaded_by=request.user,
             original_filename=form.cleaned_data["file"].name,
             file_content=form.content,
-            course_number=form.cleaned_data["course_number"],
+            group_number=form.cleaned_data["group_number"],
         )
         log(
             request.user,
@@ -189,18 +189,16 @@ def upload_columns(request, pk):
     form = ColumnForm(headers, request.POST or None)
     errors = []
     if request.method == "POST" and form.is_valid():
-        group_col = int(form.cleaned_data["group_col"])
         name_col = int(form.cleaned_data["name_col"])
         id_col = int(form.cleaned_data["id_col"]) if form.cleaned_data["id_col"] else None
-        result = parse_rows(rows, group_col, name_col, id_col)
+        result = parse_rows(rows, upload.group_number, name_col, id_col)
         errors = result.errors or check_groups(list(result.groups), id_col is not None)
         if not errors:
-            upload.group_col, upload.name_col, upload.id_col = group_col, name_col, id_col
+            upload.name_col, upload.id_col = name_col, id_col
             upload.parsed = {"id_mode": id_col is not None, "groups": result.groups}
             upload.status = "parsed"
             upload.save()
             pref = RosterColumnPreference.get()
-            pref.group_header = headers[group_col]
             pref.name_header = headers[name_col]
             pref.id_header = headers[id_col] if id_col is not None else ""
             pref.save()

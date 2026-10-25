@@ -31,7 +31,6 @@ class ScoreGridViewTests(TestCase):
         self.assertEqual([r["number"] for r in rows], [1, 2, 3])
         self.assertNotContains(response, "Gone Gary")
         self.assertContains(response, "C216")
-        self.assertContains(response, "216.18")
         self.assertContains(response, "Drill")
         self.assertContains(response, "Not saved yet")
         self.assertContains(response, f'name="s-{self.alice.pk}-attentiveness"')

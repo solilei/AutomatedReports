@@ -2,7 +2,7 @@
 {% block title %}Group {{ group.number }}{% endblock %}
 {% block content %}
 <h1>Group {{ group.number }}</h1>
-<p>Course {{ group.course_number }} · {{ group.get_status_display }} · {{ active_count }} active cadet{{ active_count|pluralize }}</p>
+<p>{{ group.get_status_display }} · {{ active_count }} active cadet{{ active_count|pluralize }}</p>
 {% if subjects %}
 <form method="get" action="{% url 'scoring:score_go' group.number %}">
   <label for="subject">Subject</label>

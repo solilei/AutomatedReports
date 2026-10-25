@@ -164,7 +164,7 @@ class GroupLifecycleTests(TestCase):
         event = AuditEvent.objects.get(action=actions.GROUP_DELETED)
         self.assertEqual(event.group_number, "C216")
         self.assertEqual(
-            event.details, {"course_number": "216.18", "cadets": 2, "score_sets": 1}
+            event.details, {"cadets": 2, "score_sets": 1}
         )
 
     def test_deleted_number_cannot_be_reused_by_upload(self):

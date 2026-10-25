@@ -10,7 +10,6 @@ class Group(models.Model):
         ARCHIVED = "archived", "Archived"
 
     number = models.CharField(max_length=20, unique=True)
-    course_number = models.CharField(max_length=50)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
     identity_mode = models.CharField(
         max_length=4, choices=[("id", "Cadet ID"), ("name", "Name")]
@@ -63,7 +62,6 @@ class DeletedGroupNumber(models.Model):
 
 
 class RosterColumnPreference(models.Model):
-    group_header = models.CharField(max_length=200, blank=True, default="")
     name_header = models.CharField(max_length=200, blank=True, default="")
     id_header = models.CharField(max_length=200, blank=True, default="")
 
@@ -77,13 +75,12 @@ class RosterUpload(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     original_filename = models.CharField(max_length=255)
     file_content = models.BinaryField()
-    course_number = models.CharField(max_length=50)
+    group_number = models.CharField(max_length=20)
     status = models.CharField(
         max_length=10,
         choices=[("uploaded",) * 2, ("parsed",) * 2, ("applied",) * 2],
         default="uploaded",
     )
-    group_col = models.IntegerField(null=True)
     name_col = models.IntegerField(null=True)
     id_col = models.IntegerField(null=True)
     parsed = models.JSONField(default=dict)
