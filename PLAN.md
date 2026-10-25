@@ -1236,7 +1236,7 @@ def group_results(group) -> list[CadetResult]
 
 ---
 
-### [ ] 26. Demo data command and README
+### [x] 26. Demo data command and README
 
 **Files**
 - Create `roster/management/__init__.py`, `roster/management/commands/__init__.py`, `roster/management/commands/seed_demo.py`.
