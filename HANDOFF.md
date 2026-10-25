@@ -14,9 +14,10 @@
 - Slice 11 (Roster upload step 1: `roster/forms.py` UploadForm, `roster/services.py` `cell_text`/`read_sheet`/`RosterError`, `roster:upload` view and template, `ROSTER_MAX_UPLOAD_BYTES`, Upload roster nav link) committed and pushed at `912fa33`. 16 new tests; 121 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 12 (Roster upload step 2: `ColumnForm`, `parse_rows`/`check_groups`/`ParseResult` in `roster/services.py`, `roster:upload_columns` view and template, remembered columns, `roster:upload_preview` 404 stub) committed and pushed at `0809a76`. 20 new tests; 141 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 13 (Roster upload step 3: `GroupChange`/`build_preview`/`apply_upload` in `roster/services.py`, `roster:upload_preview` view and `upload_preview.html` replacing the 404 stub) committed and pushed at `5d37e26`. 18 new tests; 159 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 14 (Scoring models: `scoring/attributes.py`, `ScoreSet` and `CadetScore` in `scoring/models.py`, migration `0002`, `scoring/tests/helpers.py` `make_score_set`) committed and pushed at `e3a7bdb`. 7 new tests; 166 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 14 (Scoring models and attribute definitions) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 15 (Score grid: view GET) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
@@ -62,9 +63,14 @@
 - Slice 13: cadets missing from the file keep their old `position`, so positions in a group can repeat or have gaps after a re-upload.
 - Slice 13: `Confirm and apply` is disabled in the template when errors show; the POST still re-checks server-side.
 - Slice 13: the `GROUP_CREATED` audit details carry `course_number`, which PLAN.md doesn't ask for.
+- Slice 14: the models have no views, forms or audit events yet; nothing uses `ScoreSet`/`CadetScore` until slices 15+. `ATTRIBUTES`' third element (export header label) and `BLANK_COUNTS_AS` are unused until slices 21+.
+- Slice 14: the range check is enforced by DB `CheckConstraint`s only; the model validators run in forms/`full_clean()`, not on `objects.create()`.
+- Slice 14: `ScoreSet.instructor` and `.subject` are `PROTECT`, so deleting a user or subject with score sets fails; slices 7/9 never delete either, but any future delete UI must handle `ProtectedError`.
+- Slice 14: the check constraint uses `condition=` (Django 5.2 renamed `check=`); the PLAN.md wording doesn't say which.
+- Slice 14: `test_models.py` has no tests beyond PLAN.md's 7; the out-of-range test loops over all six attributes with `subTest`.
 ## Decisions made
 - Django 5.2 LTS + openpyxl, pyotp, segno, msal (approved). PLAN.md D1–D18 accepted.
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One course number per upload, typed by the admin each time (box starts empty).
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 and 13 tests are frozen: don't modify test files unless the user asks.
+- Slice 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 and 14 tests are frozen: don't modify test files unless the user asks.
