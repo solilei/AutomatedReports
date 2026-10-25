@@ -41,6 +41,12 @@ def _fill(hex_):
     return PatternFill(fill_type="solid", fgColor=hex_, bgColor=hex_)
 
 
+def _text(cell, value):
+    """Write user-supplied text; openpyxl would otherwise store a leading '=' as a formula."""
+    cell.value = value
+    cell.data_type = "s"
+
+
 def _fill_range(ws, first, last, row, hex_):
     for col in ALL_COLUMNS[ALL_COLUMNS.index(first) : ALL_COLUMNS.index(last) + 1]:
         ws[f"{col}{row}"].fill = _fill(hex_)
@@ -74,9 +80,9 @@ def build_group_report(group, export_date: date) -> Workbook:
 
     instructors = sorted({s.instructor.display_name for s in score_sets}, key=str.casefold)
     subjects = sorted({s.subject.name for s in score_sets})
-    ws["B8"] = f"Instructor: {', '.join(instructors)}"
+    _text(ws["B8"], f"Instructor: {', '.join(instructors)}")
     ws["C8"] = "Subject:"
-    ws["D8"] = ", ".join(subjects)
+    _text(ws["D8"], ", ".join(subjects))
     ws["M8"] = "Date"
     ws.merge_cells("N8:O8")
     ws["N8"] = export_date
@@ -108,7 +114,7 @@ def build_group_report(group, export_date: date) -> Workbook:
     for offset, result in enumerate(results):
         row = 15 + offset
         ws[f"A{row}"] = result.number
-        ws[f"B{row}"] = result.cadet.name
+        _text(ws[f"B{row}"], result.cadet.name)
         if result.averages is None:
             ws[f"O{row}"] = "no data"
             for first, last in ATTRIBUTE_PAIRS:
@@ -147,7 +153,7 @@ def build_group_report(group, export_date: date) -> Workbook:
     for i, line in enumerate(lines or ["None."]):
         row = footer + 5 + i
         ws.merge_cells(f"A{row}:O{row}")
-        ws[f"A{row}"] = line
+        _text(ws[f"A{row}"], line)
         ws[f"A{row}"].alignment = Alignment(wrap_text=True, vertical="top")
 
     for row in ws.iter_rows():

@@ -2,6 +2,10 @@
 
 A Django web app where instructors score cadets on six soft-skill attributes and an admin exports the Cadet Soft Skills Report.
 
+Full guides:
+- [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md): step-by-step local setup on Windows, macOS or Linux, a walkthrough and troubleshooting.
+- [docs/HOSTING.md](docs/HOSTING.md): what is needed to host it for colleagues (why OneDrive can't host it, and the Azure App Service route).
+
 ## Setup
 
 ```bash

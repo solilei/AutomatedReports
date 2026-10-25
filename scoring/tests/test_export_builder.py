@@ -346,6 +346,31 @@ class ExportBuilderTests(TestCase):
                 self.assertEqual(border.style, "medium", f"{ref} {side}")
                 self.assertEqual(border.color.rgb[-6:], "000000", f"{ref} {side}")
 
+    def test_text_starting_with_equals_is_written_as_text_not_formula(self):
+        self.alice.name = "=HYPERLINK(\"http://x\",\"y\")"
+        self.alice.save()
+        self.drill.name = "=1+1"
+        self.drill.save()
+        self.bea.full_name = "=2+2"
+        self.bea.save()
+        s1 = make_score_set(self.bea, self.drill, self.group, {self.alice: scores(4)})
+        self.comment(s1, self.alice, "Fine")
+        buffer = BytesIO()
+        self.build().save(buffer)
+        buffer.seek(0)
+        ws = load_workbook(buffer).active
+        footer = 15 + 3
+        expected = {
+            "B15": "=HYPERLINK(\"http://x\",\"y\")",
+            "D8": "=1+1",
+            "B8": "Instructor: =2+2",
+            f"A{footer + 5}": "=HYPERLINK(\"http://x\",\"y\") — =2+2 (=1+1): Fine",
+        }
+        for ref, value in expected.items():
+            self.assertEqual(ws[ref].value, value, ref)
+            self.assertEqual(ws[ref].data_type, "s", ref)
+        self.assertEqual(ws["O15"].data_type, "f")
+
     def test_no_data_row_merges_na_per_attribute(self):
         make_score_set(self.bea, self.drill, self.group, {self.alice: scores(4)})
         ws = self.sheet()

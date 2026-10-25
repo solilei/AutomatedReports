@@ -77,7 +77,7 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 - [ ] Accepts `.xlsx` files only
 - [ ] Enforces a maximum file size of 5 MB
 - [ ] Roster contains one column for group number, one for cadet name, plus other columns that are ignored
-- [ ] After upload, the site shows the file's header row and the admin picks the Group column and the Name column
+- [ ] After upload, the site shows the file's header row and the admin picks the Name column (there is no Group column; see below)
 - [ ] The site remembers the last column choice and pre-selects it next time
 - [ ] If the roster has a cadet ID column, the admin can choose it as the cadet identifier
 - [ ] One file contains one course only; the file's cadets all belong to the one group the admin names
@@ -124,7 +124,8 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 ### Scoring page
 - [ ] Flow: select group → select subject → full list of active cadets in the group → enter scores and comments → Save
 - [ ] Saving requires at least one score to be entered
-- [ ] On Save, the site warns how many cadets/cells are blank and will be counted as 3
+- [ ] On an instructor's **first** save of a score set, blank cells are filled with 3 and saved as 3, with no warning
+- [ ] On later saves, blank cells stay blank; the site warns how many cadets/cells are blank and will be counted as 3, and saves only after the instructor confirms
 - [ ] Cadets added since this instructor's last save are visibly marked ("added since your last save")
 - [ ] Instructors can edit their saved score sets at any time while the group is not locked
 
