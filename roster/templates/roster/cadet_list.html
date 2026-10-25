@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Cadets in {{ group.number }}{% endblock %}
+{% block content %}
+<h1>Cadets in group {{ group.number }}</h1>
+<p><a href="{% url 'roster:group_detail' group.number %}">Back to group</a></p>
+<table>
+  <thead>
+    <tr><th>Position</th><th>Name</th><th>Cadet ID</th><th>Status</th><th>Score rows</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for cadet in cadets %}
+    <tr>
+      <td>{{ cadet.position }}</td>
+      <td>{{ cadet.name }}</td>
+      <td>{{ cadet.external_id }}</td>
+      <td>{% if cadet.is_active %}Active{% else %}Inactive{% endif %}</td>
+      <td>{{ cadet.score_count }}</td>
+      <td><a href="{% url 'roster:cadet_delete' cadet.pk %}">Delete</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6">No cadets.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -13,7 +13,7 @@ from scoring.models import ScoreSet, Subject
 
 from . import lifecycle
 from .forms import ColumnForm, UploadForm
-from .models import Group, RosterColumnPreference, RosterUpload
+from .models import Cadet, Group, RosterColumnPreference, RosterUpload
 from .services import apply_upload, build_preview, check_groups, parse_rows, read_sheet
 
 
@@ -114,6 +114,44 @@ def group_delete(request, number):
             "score_set_count": group.score_sets.count(),
             "error": error,
         },
+    )
+
+
+@admin_required
+def cadet_list(request, number):
+    group = get_object_or_404(Group, number=number)
+    cadets = group.cadets.annotate(score_count=Count("scores"))
+    return render(request, "roster/cadet_list.html", {"group": group, "cadets": cadets})
+
+
+@admin_required
+def cadet_delete(request, pk):
+    cadet = get_object_or_404(Cadet.objects.select_related("group"), pk=pk)
+    group = cadet.group
+    if not group.is_editable:
+        messages.error(request, f"Group is {group.status}; cadets cannot be deleted.")
+        return redirect("roster:cadet_list", number=group.number)
+    score_rows = cadet.scores.count()
+    if request.method == "POST":
+        with transaction.atomic():
+            log(
+                request.user,
+                actions.CADET_DELETED,
+                f"{request.user.username} deleted cadet {cadet.name} from group {group.number}",
+                group_number=group.number,
+                details={
+                    "cadet": cadet.name,
+                    "external_id": cadet.external_id,
+                    "score_rows": score_rows,
+                },
+            )
+            cadet.delete()
+        messages.success(request, f"Cadet {cadet.name} deleted.")
+        return redirect("roster:cadet_list", number=group.number)
+    return render(
+        request,
+        "roster/cadet_delete_confirm.html",
+        {"cadet": cadet, "group": group, "score_rows": score_rows},
     )
 
 

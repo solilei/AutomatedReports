@@ -969,7 +969,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 19. Cadet management and permanent cadet deletion
+### [x] 19. Cadet management and permanent cadet deletion
 
 **Files**
 - Change `roster/views.py`, `roster/urls.py`, `roster/templates/roster/group_detail.html` (admin link "Manage cadets").
