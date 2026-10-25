@@ -184,7 +184,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 3. Base layout, local login/logout, login mode, session rules
+### [x] 3. Base layout, local login/logout, login mode, session rules
 
 **Files**
 - Change `config/settings.py`, `config/urls.py`.
