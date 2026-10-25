@@ -752,7 +752,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 14. Scoring models and attribute definitions
+### [x] 14. Scoring models and attribute definitions
 
 **Files**
 - Create `scoring/attributes.py`.
