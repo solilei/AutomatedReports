@@ -141,7 +141,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 2. Audit log model and `log()` helper
+### [x] 2. Audit log model and `log()` helper
 
 **Files**
 - Create `audit/actions.py`, `audit/models.py`, `audit/service.py`.
