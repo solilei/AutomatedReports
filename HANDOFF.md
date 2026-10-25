@@ -24,9 +24,10 @@
 - Slice 21 (Results calculation: `scoring/results.py` `round_average`/`CadetResult`/`group_results`, `BAND_HEX`, `FLAG_BELOW`) committed and pushed at `8661783`. 15 new tests; 248 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Change after Slice 21, at the user's request, committed and pushed at `4f04fff`: the course number is removed; the group number (`C216`) is the course, typed by the admin at upload. Each roster file holds one course, with no group column. See PLAN.md "Change after Slice 21". Migration `roster/0002` applied to `db.sqlite3`. Samples split into `samples/sample_roster_C216/C217/C218.xlsx` (the multi-course `sample_roster.xlsx` was removed with `git rm`). Roster tests updated to match.
 - Also at the user's request, committed and pushed at `fe1855a`: nav spacing, bigger centred sign-in page with a Show/Hide password button, score dropdowns show 1–5 only (legend above the grid), and a first save fills blank cells with 3 (later saves keep blanks and the warning). Four `test_grid_save.py` tests were rewritten and five added for this. 254 tests pass; `check` and `makemigrations --check` are clean.
+- Slice 22 (Results page: `results` view in `scoring/views.py`, `groups/<number>/results/` URL, `scoring/results.html`, "Results" link in `group_detail.html`) committed and pushed at `9b09c39`. 11 new tests; 265 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 22 (Results page) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 23 (Export workbook builder) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
 - After Slice 21 (`4f04fff`, `fe1855a`): none of the new behaviour has been checked in a browser (tests only): group-number box on the upload page, the columns page without a group column, the Show/Hide password button, the centred sign-in page, nav spacing, 1–5 dropdowns with the legend, and the first-save fill with 3.
 - First save fills blanks with 3 only when the instructor has no score set yet for that group and subject. Later saves keep blanks blank and still show the blank warning with confirm. Say if blanks should always fill with 3.
@@ -34,7 +35,7 @@
 - Group numbers are typed by the admin at each upload and must match what instructors expect (`C216`); a typo creates a new group. The group is only checked against locked, archived and deleted groups.
 - A roster file with several courses is no longer detected: every row goes into the one group typed at upload. The old multi-course `samples/sample_roster.xlsx` was deleted for that reason.
 - The audit `AuditEvent.action` choices still include `group.course_changed`; nothing logs it.
-- Slice 22 (Results page) and the export slices (23 and 24) must use the group number where PLAN.md says course number (the export header "Course").
+- The export slices (23 and 24) must use the group number where PLAN.md says course number (the export header "Course").
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
 - Slice 8: the Microsoft button only appears when `LOGIN_MODE` is `microsoft` or `both`; the default `local` shows no button and the routes 404.
@@ -122,6 +123,12 @@
 - Slice 20: `score_set_detail` numbers rows 1..n in display order (active cadets first, then inactive), not by the grid's numbering, so a row's No. can differ from the one the instructor saw.
 - Slice 21: `test_results.py` has 2 tests beyond PLAN.md's 13 (`test_results_ordered_and_numbered`, `test_other_group_scores_ignored`). Nothing uses `group_results` yet.
 - Slice 21: `group_results` takes cadet ids from the 1st query and filters rows with `cadet__in=cadets` (a list of objects), so Django inlines the ids; fine for roster sizes, but a very large group would hit SQLite's variable limit.
+- Slice 22: `test_results_page.py` has 4 tests beyond PLAN.md's 7 (`test_summary_count_and_key`, `test_summary_singular`, `test_unknown_group_404`, `test_group_page_links_to_results`).
+- Slice 22: the results page has not been checked in a browser (tests only). PLAN.md has no manual check for it. Needs a few scores in the dev DB to see bands and flags.
+- Slice 22: the key lines read "5 – A Excellent" (from `SCORE_CHOICES`, with an en dash), not PLAN.md's "5 A Excellent". Key swatches use inline `style="background:#HEX"` from `BAND_HEX` plus the `band-N` class.
+- Slice 22: "Based on N saved score sets" counts every `ScoreSet` in the group (`group.score_sets.count()`), including sets from deactivated instructors and sets with no rows for active cadets.
+- Slice 22: the Results link shows on the group page to everyone who can open it, and on locked groups; the page itself is read-only. `results` calls `group_results` once per request (2 queries) plus one count query.
+- Slice 22: `test_page_does_not_contain_instructor_names` only asserts the other instructor's username and full name are absent; it passes because nothing on the page prints instructor data.
 - Local dev DB: `db.sqlite3` is migrated and holds account `testadmin`, subject `Drill`, and groups C216/C217/C218 loaded via the services, not the UI, so there are no `ROSTER_UPLOADED` or subject-created events. Start the server with `MFA_REQUIRED=False python manage.py runserver 127.0.0.1:8000` to skip MFA (MFA is on by default).
 - `createadmin` is not atomic with its audit log: if the audit table is missing, the user is created but the command fails and the password is lost.
 ## Decisions made
@@ -129,4 +136,4 @@
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One group per upload, typed by the admin each time (box starts empty); the group number is the course.
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1 to 21 tests are frozen (except as changed at the user's request, see above): don't modify test files unless the user asks.
+- Slice 1 to 22 tests are frozen (except as changed at the user's request, see above): don't modify test files unless the user asks.
