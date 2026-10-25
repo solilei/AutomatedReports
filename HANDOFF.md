@@ -19,9 +19,10 @@
 - Slice 16 (Score grid save: `scoring/services.py` `parse_submission`/`count_blanks`/`save_score_set`, POST handling in `score_grid`, errors/warning/`confirm_blanks` in `score_grid.html`) committed and pushed at `e9ecb0d`. 16 new tests; 194 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 17 (Home group dropdown, group page, admin group list: `home`/`group_go`/`group_detail`/`group_list` in `roster/views.py`, URLs, `home.html`, `group_detail.html`, `group_list.html`, `score_go` fallback to `roster:group_detail`, back link in `score_grid.html`, admin "Groups" nav link) committed and pushed at `842bfb6` with Slice 18. 13 new tests; 207 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 18 (Group lifecycle: `roster/lifecycle.py` `change_status`/`delete_group`, views `group_lock`/`group_unlock`/`group_archive`/`group_unarchive`/`group_delete` and URLs, admin buttons in `group_detail.html`, `group_delete_confirm.html`) committed and pushed at `842bfb6`. 16 new tests; 223 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 19 (Cadet management: `cadet_list`/`cadet_delete` in `roster/views.py`, URLs, `cadet_list.html`, `cadet_delete_confirm.html`, "Manage cadets" link in `group_detail.html`) committed and pushed at `95935ed`. 5 new tests; 228 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 19 (cadet management and permanent cadet deletion) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 20 ("My score sets" and admin score-set views) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
@@ -98,6 +99,11 @@
 - Slice 18: audit summaries ("<user> locked group C216", etc.) are my wording; PLAN.md doesn't fix them.
 - Slice 18: archived groups are hidden from instructors by `get_visible_group`, so an instructor can't see an archived group but a locked one still shows; scoring POST on a locked group returns 403.
 - Slice 18: delete relies on `select_for_update`, which SQLite ignores; concurrency is untested. `ScoreSet.group` cascade is assumed to remove score sets (covered by `test_delete_removes_group_data_and_records_number`).
+- Slice 19: `test_cadets.py` has no tests beyond PLAN.md's 5; `test_locked_group_blocks_delete` loops over locked and archived with `subTest`.
+- Slice 19: the cadet list and delete pages have not been checked in a browser (tests only). No CSS for them.
+- Slice 19: GET on `cadet_delete` for a locked or archived group also redirects to the list with the error message (PLAN.md only specifies the refusal for the deletion). Success message "Cadet <name> deleted." and audit summary "<user> deleted cadet <name> from group <n>" are my wording.
+- Slice 19: `cadet_list` and `cadet_delete` don't use `get_visible_group`; they 404 only for unknown ids/numbers, so admins can open archived groups' cadet lists. The score-row count is `Count("scores")`, which includes rows in all score sets.
+- Slice 19: deleting a cadet leaves existing score sets with fewer rows; nothing recomputes or flags them. Remaining cadets keep their old `position`, so gaps appear.
 - Local dev DB: `db.sqlite3` is migrated and holds account `testadmin`, subject `Drill`, and groups C216/C217/C218 (course 216.18) loaded via the services, not the UI, so there are no `ROSTER_UPLOADED` or subject-created events. Start the server with `MFA_REQUIRED=False python manage.py runserver 127.0.0.1:8000` to skip MFA (MFA is on by default).
 - `createadmin` is not atomic with its audit log: if the audit table is missing, the user is created but the command fails and the password is lost.
 ## Decisions made
@@ -105,4 +111,4 @@
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One course number per upload, typed by the admin each time (box starts empty).
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1 to 18 tests are frozen: don't modify test files unless the user asks.
+- Slice 1 to 19 tests are frozen: don't modify test files unless the user asks.
