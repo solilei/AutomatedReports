@@ -8,6 +8,7 @@
 {% if not editable %}<p class="banner">This group is {{ group.status }} and read-only.</p>{% endif %}
 {% if errors %}<ul class="errorlist">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
 {% if warning %}<p class="banner warning">{{ warning }}</p>{% endif %}
+<p class="score-legend">{% for value, text in score_choices %}{{ text }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
 <form method="post">
   {% csrf_token %}
   {% if confirm_blanks %}<input type="hidden" name="confirm_blanks" value="{{ confirm_blanks }}">{% endif %}
@@ -28,7 +29,7 @@
         <td>
           <select name="{{ cell.name }}"{% if not editable %} disabled{% endif %}>
             <option value=""></option>
-            {% for value, text in score_choices %}<option value="{{ value }}"{% if cell.value == value %} selected{% endif %}>{{ text }}</option>{% endfor %}
+            {% for value, text in score_choices %}<option value="{{ value }}"{% if cell.value == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
           </select>
         </td>
         {% endfor %}

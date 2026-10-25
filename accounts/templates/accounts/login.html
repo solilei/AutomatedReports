@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Sign in{% endblock %}
 {% block content %}
+<div class="signin">
 <h1>Sign in</h1>
 {% if show_local_form %}
 <form method="post">
@@ -9,8 +10,31 @@
   <input type="hidden" name="next" value="{{ next }}">
   <button type="submit">Sign in</button>
 </form>
+<script>
+(function () {
+  var field = document.getElementById("id_password");
+  if (!field) return;
+  var peek = document.createElement("button");
+  peek.type = "button";
+  peek.className = "peek";
+  peek.textContent = "Show";
+  peek.setAttribute("aria-label", "Show password");
+  peek.addEventListener("click", function () {
+    var hidden = field.type === "password";
+    field.type = hidden ? "text" : "password";
+    peek.textContent = hidden ? "Hide" : "Show";
+    peek.setAttribute("aria-label", hidden ? "Hide password" : "Show password");
+  });
+  var wrap = document.createElement("span");
+  wrap.className = "peek-wrap";
+  field.parentNode.insertBefore(wrap, field);
+  wrap.appendChild(field);
+  wrap.appendChild(peek);
+})();
+</script>
 {% endif %}
 {% if show_microsoft %}
 <p><a href="/accounts/microsoft/login/">Sign in with Microsoft</a></p>
 {% endif %}
+</div>
 {% endblock %}

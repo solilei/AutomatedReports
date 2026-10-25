@@ -144,7 +144,12 @@ def score_grid(request, number, subject_id):
         return _render_grid(
             request, group, subject, score_set, data, ["Enter at least one score before saving."]
         )
-    if blank_cells and request.POST.get("confirm_blanks") != str(blank_cells):
+    if blank_cells and score_set is None:
+        for entry in data.values():
+            for field, value in entry["scores"].items():
+                if value is None:
+                    entry["scores"][field] = BLANK_COUNTS_AS
+    elif blank_cells and request.POST.get("confirm_blanks") != str(blank_cells):
         warning = (
             f"{blank_cells} blank cell(s) across {blank_cadets} cadet(s) will be counted as "
             f"{BLANK_COUNTS_AS}. Click Save again to confirm."

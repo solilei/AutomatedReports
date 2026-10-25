@@ -70,7 +70,48 @@ class ScoreGridSaveTests(TestCase):
         bob_row = response.context["rows"][1]
         self.assertEqual(bob_row["cells"][3]["value"], 2)
 
-    def test_blank_warning_shown_and_nothing_saved(self):
+    def existing_set(self):
+        return make_score_set(self.instructor, self.subject, self.group, {})
+
+    def test_first_save_fills_blank_cells_with_3_without_warning(self):
+        data = self.full_data()
+        data[f"s-{self.alice.pk}-attire"] = ""
+        data[f"s-{self.bob.pk}-teamwork"] = ""
+        response = self.client.post(self.url, data, follow=True)
+        self.assertRedirects(response, self.url)
+        self.assertContains(response, "Saved.")
+        self.assertNotContains(response, "blank cell(s)")
+        self.assertEqual(CadetScore.objects.get(cadet=self.alice).attire, 3)
+        self.assertEqual(CadetScore.objects.get(cadet=self.bob).teamwork, 3)
+        self.assertEqual(CadetScore.objects.get(cadet=self.alice).teamwork, 4)
+
+    def test_first_save_filled_cells_show_3_and_are_audited(self):
+        data = self.full_data()
+        data[f"s-{self.alice.pk}-attire"] = ""
+        response = self.client.post(self.url, data, follow=True)
+        alice_row = response.context["rows"][0]
+        self.assertEqual(alice_row["cells"][3]["value"], 3)
+        event = AuditEvent.objects.get(
+            action=actions.SCORE_CHANGED, details__cadet_id=self.alice.pk,
+            details__attribute="attire",
+        )
+        self.assertEqual((event.details["old"], event.details["new"]), (None, 3))
+
+    def test_first_save_all_blank_still_refused(self):
+        response = self.client.post(self.url, self.full_data(value=""))
+        self.assertContains(response, "Enter at least one score before saving.")
+        self.assertFalse(CadetScore.objects.exists())
+
+    def test_later_save_keeps_blank_cells_blank(self):
+        self.client.post(self.url, self.full_data())
+        data = self.full_data()
+        data[f"s-{self.alice.pk}-attire"] = ""
+        data["confirm_blanks"] = "1"
+        self.client.post(self.url, data)
+        self.assertIsNone(CadetScore.objects.get(cadet=self.alice).attire)
+
+    def test_blank_warning_shown_on_later_save_and_nothing_changed(self):
+        self.existing_set()
         data = self.full_data()
         data[f"s-{self.alice.pk}-attire"] = ""
         data[f"s-{self.alice.pk}-teamwork"] = ""
@@ -82,10 +123,11 @@ class ScoreGridSaveTests(TestCase):
             "3 blank cell(s) across 2 cadet(s) will be counted as 3. Click Save again to confirm.",
         )
         self.assertContains(response, '<input type="hidden" name="confirm_blanks" value="3">')
-        self.assertFalse(ScoreSet.objects.exists())
+        self.assertFalse(CadetScore.objects.exists())
         self.assertEqual(AuditEvent.objects.filter(action=actions.SCORE_CHANGED).count(), 0)
 
     def test_confirm_with_matching_count_saves(self):
+        self.existing_set()
         data = self.full_data()
         data[f"s-{self.alice.pk}-attire"] = ""
         data["confirm_blanks"] = "1"
@@ -96,6 +138,7 @@ class ScoreGridSaveTests(TestCase):
         self.assertEqual(row.teamwork, 4)
 
     def test_confirm_with_stale_count_warns_again(self):
+        self.existing_set()
         data = self.full_data()
         data[f"s-{self.alice.pk}-attire"] = ""
         data[f"s-{self.alice.pk}-teamwork"] = ""
@@ -104,7 +147,7 @@ class ScoreGridSaveTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "2 blank cell(s) across 1 cadet(s)")
         self.assertContains(response, 'name="confirm_blanks" value="2"')
-        self.assertFalse(ScoreSet.objects.exists())
+        self.assertFalse(CadetScore.objects.exists())
 
     def test_full_grid_saves_without_warning(self):
         response = self.client.post(self.url, self.full_data(), follow=True)
@@ -116,8 +159,7 @@ class ScoreGridSaveTests(TestCase):
     def test_rows_created_for_every_active_cadet_including_all_blank(self):
         Cadet.objects.create(group=self.group, name="Gone Gary", position=0, is_active=False)
         data = self.full_data(cadets=[self.alice])
-        data["confirm_blanks"] = "6"
-        # Bob's cells are all blank: 6 cells across 1 cadet.
+        # Bob's cells are all blank and become 3 on the first save.
         for field in ATTRIBUTE_FIELDS:
             data[f"s-{self.bob.pk}-{field}"] = ""
         response = self.client.post(self.url, data)
@@ -127,7 +169,7 @@ class ScoreGridSaveTests(TestCase):
             set(score_set.rows.values_list("cadet__name", flat=True)), {"Alice Ng", "Bob Ray"}
         )
         bob_row = score_set.rows.get(cadet=self.bob)
-        self.assertTrue(all(getattr(bob_row, f) is None for f in ATTRIBUTE_FIELDS))
+        self.assertTrue(all(getattr(bob_row, f) == 3 for f in ATTRIBUTE_FIELDS))
 
     def test_edit_updates_existing_set_not_new_one(self):
         make_score_set(

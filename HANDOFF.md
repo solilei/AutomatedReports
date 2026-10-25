@@ -22,6 +22,8 @@
 - Slice 19 (Cadet management: `cadet_list`/`cadet_delete` in `roster/views.py`, URLs, `cadet_list.html`, `cadet_delete_confirm.html`, "Manage cadets" link in `group_detail.html`) committed and pushed at `95935ed`. 5 new tests; 228 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 20 ("My score sets" and admin score-set views: `my_score_sets`/`group_score_sets`/`score_set_detail` in `scoring/views.py`, URLs, three templates, "My score sets" nav link, admin "All score sets" link in `group_detail.html`) committed and pushed at `f0a140e`. 5 new tests; 233 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 21 (Results calculation: `scoring/results.py` `round_average`/`CadetResult`/`group_results`, `BAND_HEX`, `FLAG_BELOW`) committed and pushed at `8661783`. 15 new tests; 248 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Change after Slice 21, at the user's request (not committed): the course number is removed; the group number (`C216`) is the course, typed by the admin at upload. Each roster file holds one course, with no group column. See PLAN.md "Change after Slice 21". Migration `roster/0002` applied to `db.sqlite3`. Samples split into `samples/sample_roster_C216/C217/C218.xlsx` (the multi-course `sample_roster.xlsx` was removed with `git rm`). Roster tests updated to match.
+- Also at the user's request (not committed): nav spacing, bigger centred sign-in page with a Show/Hide password button, score dropdowns show 1–5 only (legend above the grid), and a first save fills blank cells with 3 (later saves keep blanks and the warning). Four `test_grid_save.py` tests were rewritten and five added for this. 254 tests pass; `check` and `makemigrations --check` are clean.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
 - Slice 22 (Results page) in PLAN.md, only when the user says to start. Don't write code until then.
@@ -118,6 +120,6 @@
 ## Decisions made
 - Django 5.2 LTS + openpyxl, pyotp, segno, msal (approved). PLAN.md D1–D18 accepted.
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
-- One course number per upload, typed by the admin each time (box starts empty).
+- One group per upload, typed by the admin each time (box starts empty); the group number is the course.
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1 to 21 tests are frozen: don't modify test files unless the user asks.
+- Slice 1 to 21 tests are frozen (except as changed at the user's request, see above): don't modify test files unless the user asks.
