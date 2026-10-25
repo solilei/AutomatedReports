@@ -4,7 +4,10 @@ from django.urls import NoReverseMatch, reverse
 from accounts.tests.helpers import make_user
 from audit import actions
 from audit.models import AuditEvent
+from roster.models import Group
+from roster.tests.helpers import make_group
 from scoring.models import Subject
+from scoring.tests.helpers import make_score_set
 
 
 def url(name, subject=None):
@@ -56,6 +59,29 @@ class SubjectTests(TestCase):
         self.assertEqual(subject.name, "Marching")
         event = AuditEvent.objects.get(action=actions.SUBJECT_RENAMED)
         self.assertEqual(event.details, {"old": "Drill", "new": "Marching"})
+
+    def test_rename_refused_when_used_by_locked_or_archived_group(self):
+        for status in ("locked", "archived"):
+            with self.subTest(status=status):
+                Group.objects.all().delete()
+                subject, _ = Subject.objects.get_or_create(name="Drill")
+                group = make_group("C216", cadets=("Alice Ng",), status=status)
+                make_score_set(self.admin, subject, group, {group.cadets.get(): {}})
+                response = self.client.post(url("subject_edit", subject), {"name": "Marching"})
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "cannot be renamed")
+                subject.refresh_from_db()
+                self.assertEqual(subject.name, "Drill")
+        self.assertFalse(AuditEvent.objects.filter(action=actions.SUBJECT_RENAMED).exists())
+
+    def test_rename_allowed_when_used_only_by_active_groups(self):
+        subject = Subject.objects.create(name="Drill")
+        group = make_group("C216", cadets=("Alice Ng",))
+        make_score_set(self.admin, subject, group, {group.cadets.get(): {}})
+        response = self.client.post(url("subject_edit", subject), {"name": "Marching"})
+        self.assertRedirects(response, url("subject_list"))
+        subject.refresh_from_db()
+        self.assertEqual(subject.name, "Marching")
 
     def test_toggle_deactivates_and_reactivates(self):
         subject = Subject.objects.create(name="Drill")

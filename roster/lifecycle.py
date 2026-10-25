@@ -17,6 +17,7 @@ TRANSITIONS = {
         actions.GROUP_ARCHIVED,
         "archived",
     ),
+    # Unarchive returns to status_before_archive; ACTIVE is the fallback.
     "unarchive": ({Status.ARCHIVED}, Status.ACTIVE, actions.GROUP_UNARCHIVED, "unarchived"),
 }
 
@@ -32,8 +33,13 @@ def change_status(group, action, actor):
         group = Group.objects.select_for_update().get(pk=group.pk)
         if group.status not in allowed_from:
             return refusal(action, group)
+        if action == "archive":
+            group.status_before_archive = group.status
+        elif action == "unarchive":
+            new_status = group.status_before_archive or new_status
+            group.status_before_archive = ""
         group.status = new_status
-        group.save(update_fields=["status"])
+        group.save(update_fields=["status", "status_before_archive"])
         log(
             actor,
             audit_action,

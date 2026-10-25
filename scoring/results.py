@@ -25,11 +25,18 @@ class CadetResult:
 
 def group_results(group) -> list[CadetResult]:
     cadets = list(Cadet.objects.filter(group=group, is_active=True).order_by("position", "name"))
+    # Every saved score set counts for every cadet with data; a missing row counts as all 3s.
+    # Sets are counted from their rows (inactive cadets included) to keep this to one query.
+    active_ids = {cadet.id for cadet in cadets}
+    set_ids = set()
     rows = defaultdict(list)
-    for cadet_id, *values in CadetScore.objects.filter(
-        score_set__group=group, cadet__in=cadets
-    ).values_list("cadet_id", *ATTRIBUTE_FIELDS):
-        rows[cadet_id].append(values)
+    for set_id, cadet_id, *values in CadetScore.objects.filter(
+        score_set__group=group
+    ).values_list("score_set_id", "cadet_id", *ATTRIBUTE_FIELDS):
+        set_ids.add(set_id)
+        if cadet_id in active_ids:
+            rows[cadet_id].append(values)
+    set_count = len(set_ids)
 
     results = []
     for number, cadet in enumerate(cadets, start=1):
@@ -37,10 +44,12 @@ def group_results(group) -> list[CadetResult]:
         if not cadet_rows:
             results.append(CadetResult(number, cadet, None, None, False))
             continue
+        missing = set_count - len(cadet_rows)
         averages = {
             field: round_average(
-                sum(BLANK_COUNTS_AS if row[i] is None else row[i] for row in cadet_rows),
-                len(cadet_rows),
+                sum(BLANK_COUNTS_AS if row[i] is None else row[i] for row in cadet_rows)
+                + BLANK_COUNTS_AS * missing,
+                set_count,
             )
             for i, field in enumerate(ATTRIBUTE_FIELDS)
         }

@@ -1,5 +1,7 @@
+import hashlib
+import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from io import BytesIO
 
@@ -46,7 +48,17 @@ def read_sheet(content):
     return headers, data
 
 
-GROUP_NUMBER_RE = re.compile(r"[A-Za-z0-9._-]{1,20}")
+GROUP_NUMBER_RE = re.compile(r"(?=.*[A-Za-z0-9])[A-Za-z0-9._-]{1,20}")
+NAME_MAX_LENGTH = 200  # Cadet.name
+ID_MAX_LENGTH = 50  # Cadet.external_id
+DIGITS_RE = re.compile(r"[0-9]+")
+
+
+def normalise_id(value):
+    """Digit-only IDs ignore leading zeros, so '00123' typed as text matches the number 123."""
+    if DIGITS_RE.fullmatch(value):
+        return value.lstrip("0") or "0"
+    return value
 
 
 @dataclass
@@ -61,14 +73,18 @@ def parse_rows(rows, group_number, name_col, id_col=None):
     for index, row in enumerate(rows):
         number = index + 2
         name = " ".join(row[name_col].split())
-        external_id = row[id_col].strip() if id_col is not None else ""
+        external_id = normalise_id(row[id_col].strip()) if id_col is not None else ""
         if not (name or external_id):
             continue
         problems = []
         if not name:
             problems.append(f"Row {number}: name is blank.")
+        elif len(name) > NAME_MAX_LENGTH:
+            problems.append(f"Row {number}: name is longer than {NAME_MAX_LENGTH} characters.")
         if id_col is not None and not external_id:
             problems.append(f"Row {number}: cadet ID is blank.")
+        elif len(external_id) > ID_MAX_LENGTH:
+            problems.append(f"Row {number}: cadet ID is longer than {ID_MAX_LENGTH} characters.")
         if problems:
             result.errors.extend(problems)
             continue
@@ -151,7 +167,7 @@ def _diff_group(upload, number, entries, group):
     existing = {}
     if group is not None:
         for cadet in group.cadets.all():
-            existing[cadet.external_id if id_mode else cadet.name] = cadet
+            existing[normalise_id(cadet.external_id) if id_mode else cadet.name] = cadet
     steps = []
     in_file = set()
     for position, entry in enumerate(entries, start=1):
@@ -191,6 +207,12 @@ def _diff_upload(upload):
 
 def build_preview(upload):
     return [change for change, _ in _diff_upload(upload)]
+
+
+def preview_key(changes):
+    """Fingerprint of a preview; it differs whenever confirming would apply different changes."""
+    payload = json.dumps([asdict(change) for change in changes], sort_keys=True)
+    return hashlib.sha256(payload.encode()).hexdigest()
 
 
 def apply_upload(upload, actor, actor_label=None):
@@ -243,8 +265,9 @@ def apply_upload(upload, actor, actor_label=None):
                     old_name = cadet.name
                     cadet.position = position
                     cadet.name = entry["name"]
+                    cadet.external_id = entry["external_id"]
                     cadet.is_active = True
-                    cadet.save(update_fields=["position", "name", "is_active"])
+                    cadet.save(update_fields=["position", "name", "external_id", "is_active"])
                     if kind == "keep":
                         continue
                     if kind == "reactivate":

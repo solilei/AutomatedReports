@@ -47,6 +47,15 @@ class UploadFileTests(TestCase):
         self.assertContains(response, "Only .xlsx files are accepted.")
         self.assertEqual(RosterUpload.objects.count(), 0)
 
+    def test_rejects_group_number_without_letter_or_digit(self):
+        # "." and ".." would make /groups/<number>/ unreachable after URL normalisation.
+        for number in (".", "..", "-", "_._"):
+            with self.subTest(number=number):
+                response = self.post(xlsx_file(), group_number=number)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn("group_number", response.context["form"].errors)
+        self.assertEqual(RosterUpload.objects.count(), 0)
+
     def test_extension_check_is_case_insensitive(self):
         response = self.post(xlsx_file(name="ROSTER.XLSX"))
         self.assertEqual(response.status_code, 302)

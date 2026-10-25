@@ -79,7 +79,7 @@ def score_go(request, number):
         subject_id = int(request.GET.get("subject", ""))
     except ValueError:
         return redirect("roster:group_detail", number=group.number)
-    if not Subject.objects.filter(pk=subject_id).exists():
+    if not Subject.objects.filter(pk=subject_id, is_active=True).exists():
         return redirect("roster:group_detail", number=group.number)
     return redirect("scoring:score_grid", number=group.number, subject_id=subject_id)
 
@@ -135,6 +135,9 @@ def score_grid(request, number, subject_id):
     score_set = ScoreSet.objects.filter(
         instructor=request.user, subject=subject, group=group
     ).first()
+    if score_set is None and not subject.is_active:
+        messages.error(request, f"Subject '{subject.name}' is no longer in use.")
+        return redirect("roster:group_detail", number=group.number)
     if request.method != "POST":
         return _render_grid(request, group, subject, score_set)
     if not group.is_editable:

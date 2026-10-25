@@ -101,6 +101,16 @@ class MfaTests(TestCase):
         response = self.client.get("/accounts/login/")
         self.assertContains(response, "Too many attempts, please sign in again.")
 
+    def test_bad_codes_count_towards_the_sign_in_lock_across_sign_ins(self):
+        self.enroll()
+        self.post_login()
+        for _ in range(5):
+            self.client.post("/accounts/mfa/verify/", {"code": "000000"})
+        response = self.post_login()
+        self.assertContains(response, "Too many failed sign-in attempts")
+        self.assertNotIn("mfa_user_id", self.client.session)
+        self.assertFalse(self.is_logged_in())
+
     def test_pending_mfa_expires_after_300_seconds(self):
         secret = self.enroll()
         start = time.time()

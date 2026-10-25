@@ -16,7 +16,8 @@ class UploadForm(forms.Form):
         number = self.cleaned_data["group_number"].upper()
         if not GROUP_NUMBER_RE.fullmatch(number):
             raise forms.ValidationError(
-                "Use only letters, digits, '.', '_' and '-' (max 20 characters)."
+                "Use only letters, digits, '.', '_' and '-', with at least one letter or digit "
+                "(max 20 characters)."
             )
         return number
 

@@ -19,6 +19,8 @@ class User(AbstractUser):
     totp_secret = models.CharField(max_length=32, blank=True, default="")
     totp_confirmed = models.BooleanField(default=False)
     entra_object_id = models.CharField(max_length=36, unique=True, null=True, blank=True)
+    failed_sign_ins = models.PositiveSmallIntegerField(default=0)
+    sign_in_locked_until = models.FloatField(null=True, blank=True)  # time.time() seconds
 
     @property
     def is_admin(self):

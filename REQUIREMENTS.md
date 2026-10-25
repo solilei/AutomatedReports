@@ -35,6 +35,7 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 - [ ] Authenticator-app MFA (TOTP) is supported for local accounts
 - [ ] MFA can be switched off for local PoC testing
 - [ ] MFA is required whenever local login is used on a real server
+- [ ] 5 failed sign-in attempts in a row (wrong password or authenticator code) lock the account for 15 minutes; an admin reset clears the lock
 
 ### First admin
 - [ ] The first admin account is created from the command line on the host machine
@@ -82,15 +83,20 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 - [ ] If the roster has a cadet ID column, the admin can choose it as the cadet identifier
 - [ ] One file contains one course only; the file's cadets all belong to the one group the admin names
 - [ ] Admin types the group number (e.g. `C216`, which is also the course) at upload time; the file has no group column
+- [ ] Group numbers use letters, digits, `.`, `_` and `-` only, and contain at least one letter or digit
+- [ ] Names over 200 characters or cadet IDs over 50 are rejected with the row number
+- [ ] Admin can discard an upload before applying it; the stored file is deleted
 
 ### Cadet identity
 - [ ] If an ID column is chosen, cadets are identified by ID and displayed by name
+- [ ] Digit-only IDs ignore leading zeros (`00123` and `123` are the same cadet)
 - [ ] If no ID column, cadets are identified by (group, name)
 - [ ] Without an ID column, an upload with duplicate names in the same group is rejected with a clear message until the admin fixes the file
 
 ### Re-uploading an existing group
 - [ ] The site shows a preview of changes before applying anything: cadets added, cadets no longer present
 - [ ] Changes apply only after the admin confirms
+- [ ] If the roster changed after the preview was shown, confirming shows the updated preview instead of applying
 - [ ] New cadets are added
 - [ ] Cadets missing from the new file are marked **inactive** (hidden, data kept), not deleted
 - [ ] Nothing is deleted silently; only an admin can permanently delete a cadet
@@ -105,6 +111,8 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 
 - [ ] Subjects are a fixed list managed by admins
 - [ ] Instructors pick a subject from a dropdown when scoring (no free text)
+- [ ] A deactivated subject cannot start new score sets; existing score sets for it stay editable
+- [ ] A subject used by a locked or archived group cannot be renamed
 
 ## 7. Scoring
 
@@ -140,6 +148,7 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 - [ ] Columns: No., Name, six attribute averages, **sum of the six averages** (range 6–30) as the last column
 - [ ] Averages are taken across all saved score sets for that group (all instructors and subjects)
 - [ ] A blank score inside a **saved** score set counts as 3
+- [ ] A saved score set with no row for a cadet (e.g. the cadet was added later) counts as 3 for every attribute of that cadet
 - [ ] Instructors who never saved a score set for the group are not counted
 - [ ] A cadet with no saved scores at all shows "no data", not 3.00
 - [ ] Averages are rounded to a whole number (no decimal places); the sum is the sum of the six rounded averages
@@ -170,6 +179,7 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 - [ ] Admin can deactivate an instructor; a deactivated instructor cannot log in
 - [ ] Score sets from deactivated instructors still count in averages and exports
 - [ ] Admin can **archive** a group: read-only and hidden from dropdowns
+- [ ] Unarchiving returns the group to the status it had before it was archived (active or locked)
 - [ ] Admin can permanently **delete** an archived group and all its data
 - [ ] No automatic deletion until the organisation's retention period is known
 

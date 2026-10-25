@@ -11,6 +11,10 @@ class Group(models.Model):
 
     number = models.CharField(max_length=20, unique=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
+    # The status an archived group returns to when unarchived; blank otherwise.
+    status_before_archive = models.CharField(
+        max_length=10, choices=Status.choices, blank=True, default=""
+    )
     identity_mode = models.CharField(
         max_length=4, choices=[("id", "Cadet ID"), ("name", "Name")]
     )
@@ -78,7 +82,7 @@ class RosterUpload(models.Model):
     group_number = models.CharField(max_length=20)
     status = models.CharField(
         max_length=10,
-        choices=[("uploaded",) * 2, ("parsed",) * 2, ("applied",) * 2],
+        choices=[("uploaded",) * 2, ("parsed",) * 2, ("applied",) * 2, ("discarded",) * 2],
         default="uploaded",
     )
     name_col = models.IntegerField(null=True)

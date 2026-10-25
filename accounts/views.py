@@ -39,11 +39,17 @@ def login_view(request):
         return redirect("home")
 
     form = AuthenticationForm(request)
+    locked = False
     if request.method == "POST":
         if not show_local_form:
             return HttpResponseBadRequest("Local sign-in is disabled.")
         form = AuthenticationForm(request, data=request.POST)
-        if form.is_valid():
+        account = User.objects.filter(username=request.POST.get("username", "")).first()
+        locked = account is not None and services.is_sign_in_locked(account)
+        if locked:
+            # Unbound, so rendering never checks the password of a locked account.
+            form = AuthenticationForm(request, initial={"username": account.username})
+        elif form.is_valid():
             user = form.get_user()
             next_url = _safe_next(request, request.POST.get("next", ""))
             if settings.MFA_REQUIRED:
@@ -52,8 +58,11 @@ def login_view(request):
                 request.session["mfa_attempts"] = 0
                 request.session["mfa_next"] = next_url
                 return redirect("accounts:mfa_verify" if user.totp_confirmed else "accounts:mfa_setup")
+            services.clear_failed_sign_ins(user)
             login(request, user)
             return redirect(next_url or "home")
+        elif account is not None:
+            services.record_failed_sign_in(account)
 
     return render(
         request,
@@ -62,6 +71,7 @@ def login_view(request):
             "form": form,
             "show_local_form": show_local_form,
             "show_microsoft": show_microsoft,
+            "locked_message": services.LOCKED_MESSAGE if locked else "",
             "next": request.GET.get("next", request.POST.get("next", "")),
         },
     )
@@ -119,6 +129,7 @@ def _mfa_expired(request):
 def _finish_mfa(request, user):
     next_url = request.session.get("mfa_next", "")
     _clear_mfa(request)
+    services.clear_failed_sign_ins(user)
     login(request, user)
     return redirect(next_url or "home")
 
@@ -152,10 +163,15 @@ def mfa_verify(request):
     user = _pending_mfa_user(request)
     if user is None:
         return _mfa_expired(request)
+    if services.is_sign_in_locked(user):
+        _clear_mfa(request)
+        messages.error(request, services.LOCKED_MESSAGE)
+        return redirect("accounts:login")
     error = ""
     if request.method == "POST":
         if user.totp_confirmed and mfa.verify(user.totp_secret, request.POST.get("code", "")):
             return _finish_mfa(request, user)
+        services.record_failed_sign_in(user)
         attempts = request.session.get("mfa_attempts", 0) + 1
         request.session["mfa_attempts"] = attempts
         if attempts >= MFA_MAX_ATTEMPTS:
@@ -285,7 +301,18 @@ def user_reset(request, pk):
     target.must_change_password = True
     target.totp_secret = ""
     target.totp_confirmed = False
-    target.save(update_fields=["password", "must_change_password", "totp_secret", "totp_confirmed"])
+    target.failed_sign_ins = 0
+    target.sign_in_locked_until = None
+    target.save(
+        update_fields=[
+            "password",
+            "must_change_password",
+            "totp_secret",
+            "totp_confirmed",
+            "failed_sign_ins",
+            "sign_in_locked_until",
+        ]
+    )
     log(
         request.user,
         actions.ACCOUNT_RESET,

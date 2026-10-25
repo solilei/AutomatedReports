@@ -36,6 +36,10 @@ def preview_url(upload):
     return reverse("roster:upload_preview", args=[upload.pk])
 
 
+def discard_url(upload):
+    return reverse("roster:upload_discard", args=[upload.pk])
+
+
 @override_settings(MFA_REQUIRED=False, LOGIN_MODE="local")
 class UploadApplyTests(TestCase):
     def setUp(self):
@@ -169,6 +173,20 @@ class UploadApplyTests(TestCase):
         self.assertEqual(event.details["old"], "Alice Ng")
         self.assertEqual(event.details["new"], "Alice Young")
 
+    def test_reupload_matches_ids_that_differ_only_in_leading_zeros(self):
+        # The stored ID may predate leading-zero handling, so both sides are compared normalised.
+        for stored in ("123", "00123"):
+            with self.subTest(stored=stored):
+                Group.objects.all().delete()
+                group = Group.objects.create(number="C216", identity_mode="id")
+                Cadet.objects.create(group=group, name="Alice Ng", external_id=stored, position=1)
+                upload = make_parsed_upload([["Alice Ng", "0123"]], id_col=1)
+                change = self.client.get(preview_url(upload)).context["changes"][0]
+                self.assertEqual((change.added, change.deactivated, change.unchanged), ([], [], 1))
+                self.client.post(preview_url(upload))
+                self.assertEqual(Cadet.objects.filter(group=group, is_active=True).count(), 1)
+                self.assertEqual(Cadet.objects.filter(group=group).count(), 1)
+
     def test_reupload_to_existing_group_logs_no_group_created(self):
         make_group("C216", ["Alice Ng"])
         upload = make_parsed_upload([["Alice Ng", ""]])
@@ -201,6 +219,32 @@ class UploadApplyTests(TestCase):
         upload.refresh_from_db()
         self.assertEqual(upload.status, "parsed")
         self.assertFalse(AuditEvent.objects.filter(action=actions.ROSTER_APPLIED).exists())
+
+    def test_preview_form_carries_preview_key(self):
+        upload = make_parsed_upload([["Alice Ng", ""]])
+        response = self.client.get(preview_url(upload))
+        key = response.context["preview_key"]
+        self.assertTrue(key)
+        self.assertContains(response, f'name="preview_key" value="{key}"')
+
+    def test_roster_changed_after_preview_blocks_apply(self):
+        group = make_group("C216", ["Alice Ng"])
+        upload = make_parsed_upload([["Alice Ng", ""], ["Cy Poe", ""]])
+        key = self.client.get(preview_url(upload)).context["preview_key"]
+        # Another change adds Bob, so confirming now would also deactivate him unseen.
+        Cadet.objects.create(group=group, name="Bob Ray", position=2)
+        response = self.client.post(preview_url(upload), {"preview_key": key})
+        self.assertContains(response, "The roster changed since this preview")
+        self.assertFalse(Cadet.objects.filter(name="Cy Poe").exists())
+        self.assertTrue(Cadet.objects.get(name="Bob Ray").is_active)
+        upload.refresh_from_db()
+        self.assertEqual(upload.status, "parsed")
+        self.assertFalse(AuditEvent.objects.filter(action=actions.ROSTER_APPLIED).exists())
+        new_key = response.context["preview_key"]
+        self.assertNotEqual(new_key, key)
+        self.client.post(preview_url(upload), {"preview_key": new_key})
+        self.assertTrue(Cadet.objects.filter(name="Cy Poe").exists())
+        self.assertFalse(Cadet.objects.get(name="Bob Ray").is_active)
 
     def test_file_content_cleared_after_apply(self):
         upload = make_parsed_upload([["Alice Ng", ""]])
@@ -267,3 +311,69 @@ class UploadApplyTests(TestCase):
         self.client.post(preview_url(upload))
         self.assertEqual(list(Group.objects.values_list("number", flat=True)), ["C216"])
         self.assertEqual(Cadet.objects.filter(is_active=True).count(), 15)
+
+
+@override_settings(MFA_REQUIRED=False, LOGIN_MODE="local")
+class UploadDiscardTests(TestCase):
+    def setUp(self):
+        self.admin = make_user("boss", role="admin")
+        self.client.force_login(self.admin)
+
+    def test_preview_offers_discard(self):
+        upload = make_parsed_upload([["Alice Ng", ""]])
+        self.assertContains(self.client.get(preview_url(upload)), discard_url(upload))
+
+    def test_discard_clears_file_and_logs(self):
+        upload = make_parsed_upload([["Alice Ng", ""]])
+        response = self.client.post(discard_url(upload))
+        self.assertRedirects(response, reverse("roster:upload"), fetch_redirect_response=False)
+        upload.refresh_from_db()
+        self.assertEqual(upload.status, "discarded")
+        self.assertEqual(bytes(upload.file_content), b"")
+        self.assertEqual(upload.parsed, {})
+        self.assertFalse(Group.objects.exists())
+        event = AuditEvent.objects.get(action=actions.ROSTER_DISCARDED)
+        self.assertEqual(event.actor, self.admin)
+        self.assertEqual(event.details["upload_id"], upload.pk)
+
+    def test_discard_before_columns_chosen(self):
+        upload = make_parsed_upload([["Alice Ng", ""]], status="uploaded")
+        self.client.post(discard_url(upload))
+        upload.refresh_from_db()
+        self.assertEqual(upload.status, "discarded")
+        self.assertEqual(bytes(upload.file_content), b"")
+
+    def test_discard_is_post_only(self):
+        upload = make_parsed_upload([["Alice Ng", ""]])
+        self.assertEqual(self.client.get(discard_url(upload)).status_code, 405)
+        upload.refresh_from_db()
+        self.assertEqual(upload.status, "parsed")
+
+    def test_instructor_forbidden(self):
+        upload = make_parsed_upload([["Alice Ng", ""]])
+        self.client.force_login(make_user("inst"))
+        self.assertEqual(self.client.post(discard_url(upload)).status_code, 403)
+        upload.refresh_from_db()
+        self.assertEqual(upload.status, "parsed")
+
+    def test_applied_upload_cannot_be_discarded(self):
+        upload = make_parsed_upload([["Alice Ng", ""]])
+        self.client.post(preview_url(upload))
+        response = self.client.post(discard_url(upload))
+        self.assertRedirects(response, reverse("roster:upload"), fetch_redirect_response=False)
+        upload.refresh_from_db()
+        self.assertEqual(upload.status, "applied")
+        self.assertFalse(AuditEvent.objects.filter(action=actions.ROSTER_DISCARDED).exists())
+
+    def test_discarded_upload_cannot_be_reopened_or_applied(self):
+        upload = make_parsed_upload([["Alice Ng", ""]])
+        self.client.post(discard_url(upload))
+        columns = reverse("roster:upload_columns", args=[upload.pk])
+        for response in (
+            self.client.get(columns),
+            self.client.get(preview_url(upload)),
+            self.client.post(preview_url(upload)),
+        ):
+            self.assertRedirects(response, reverse("roster:upload"), fetch_redirect_response=False)
+        self.assertFalse(Group.objects.exists())
+        self.assertFalse(Cadet.objects.exists())

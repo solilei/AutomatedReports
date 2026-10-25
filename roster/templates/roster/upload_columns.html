@@ -19,4 +19,8 @@
   <button type="submit">Continue</button>
 </form>
 <p><a href="{% url 'roster:upload' %}">Cancel</a></p>
+<form method="post" action="{% url 'roster:upload_discard' upload.pk %}">
+  {% csrf_token %}
+  <button type="submit">Discard upload</button> (deletes the stored file)
+</form>
 {% endblock %}

@@ -4,7 +4,7 @@ from django.urls import reverse
 from accounts.tests.helpers import make_user
 from roster.models import Cadet
 from roster.tests.helpers import make_group
-from scoring.models import Subject
+from scoring.models import ScoreSet, Subject
 from scoring.tests.helpers import make_score_set
 
 
@@ -36,6 +36,24 @@ class ScoreGridViewTests(TestCase):
         self.assertContains(response, f'name="s-{self.alice.pk}-attentiveness"')
         self.assertContains(response, f'name="c-{self.alice.pk}"')
         self.assertContains(response, 'maxlength="1000"')
+
+    def test_inactive_subject_cannot_start_a_new_score_set(self):
+        self.subject.is_active = False
+        self.subject.save()
+        detail = reverse("roster:group_detail", args=["C216"])
+        url = grid_url(self.group, self.subject)
+        self.assertRedirects(self.client.get(url), detail, fetch_redirect_response=False)
+        response = self.client.post(url, {f"s-{self.alice.pk}-attentiveness": "4"})
+        self.assertRedirects(response, detail, fetch_redirect_response=False)
+        self.assertFalse(ScoreSet.objects.exists())
+        go = reverse("scoring:score_go", args=["C216"]) + f"?subject={self.subject.pk}"
+        self.assertRedirects(self.client.get(go), detail, fetch_redirect_response=False)
+
+    def test_existing_score_set_for_inactive_subject_stays_open(self):
+        make_score_set(self.instructor, self.subject, self.group, {self.alice: {"attentiveness": 4}})
+        self.subject.is_active = False
+        self.subject.save()
+        self.assertEqual(self.client.get(grid_url(self.group, self.subject)).status_code, 200)
 
     def test_prefills_own_existing_scores(self):
         make_score_set(

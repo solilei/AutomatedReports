@@ -3,6 +3,7 @@
 {% block content %}
 <div class="signin">
 <h1>Sign in</h1>
+{% if locked_message %}<p class="banner warning">{{ locked_message }}</p>{% endif %}
 {% if show_local_form %}
 <form method="post">
   {% csrf_token %}

@@ -72,6 +72,37 @@ class UploadColumnsTests(TestCase):
         upload = make_upload([HEADERS, ["Alice Ng", ""]])
         self.assertContains(self.post(upload, id_col="1"), "Row 2: cadet ID is blank.")
 
+    def test_name_longer_than_200_characters_rejected(self):
+        upload = make_upload([HEADERS, ["A" * 201, ""], ["Bob Ray", ""]])
+        response = self.post(upload)
+        self.assertContains(response, "Row 2: name is longer than 200 characters.")
+        upload.refresh_from_db()
+        self.assertEqual(upload.status, "uploaded")
+
+    def test_cadet_id_longer_than_50_characters_rejected(self):
+        result = parse_rows([["Alice Ng", "X" * 51], ["Bob Ray", "2"]], "C216", 0, 1)
+        self.assertEqual(result.errors, ["Row 2: cadet ID is longer than 50 characters."])
+
+    def test_name_and_id_at_the_length_limits_accepted(self):
+        result = parse_rows([["A" * 200, "X" * 50]], "C216", 0, 1)
+        self.assertEqual(result.errors, [])
+
+    def test_digit_only_cadet_ids_ignore_leading_zeros(self):
+        result = parse_rows(
+            [["Alice Ng", "00123"], ["Bob Ray", "000"], ["Cy Poe", "A0012"], ["Dee Fox", "0042x"]],
+            "C216", 0, 1,
+        )
+        self.assertEqual(result.errors, [])
+        self.assertEqual(
+            [c["external_id"] for c in result.groups["C216"]], ["123", "0", "A0012", "0042x"]
+        )
+
+    def test_ids_equal_after_dropping_leading_zeros_are_duplicates(self):
+        result = parse_rows([["Alice Ng", "0123"], ["Bob Ray", "123"]], "C216", 0, 1)
+        self.assertEqual(
+            result.errors, ["Cadet ID '123' appears more than once in group C216 (rows 2, 3)."]
+        )
+
     def test_fully_blank_rows_skipped(self):
         result = parse_rows(
             [["Alice Ng", "1"], ["", ""], ["  ", ""], ["Bob", "2"]], "C216", 0, 1

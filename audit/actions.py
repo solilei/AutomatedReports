@@ -7,12 +7,14 @@ ACCOUNT_REACTIVATED = "account.reactivated"
 ACCOUNT_RESET = "account.reset"
 ACCOUNT_PASSWORD_SET = "account.password_set"
 ACCOUNT_MFA_ENROLLED = "account.mfa_enrolled"
+ACCOUNT_LOCKED = "account.locked"
 SUBJECT_CREATED = "subject.created"
 SUBJECT_RENAMED = "subject.renamed"
 SUBJECT_DEACTIVATED = "subject.deactivated"
 SUBJECT_REACTIVATED = "subject.reactivated"
 ROSTER_UPLOADED = "roster.uploaded"
 ROSTER_APPLIED = "roster.applied"
+ROSTER_DISCARDED = "roster.discarded"
 GROUP_CREATED = "group.created"
 GROUP_COURSE_CHANGED = "group.course_changed"
 GROUP_LOCKED = "group.locked"
@@ -39,12 +41,14 @@ ALL_ACTIONS = [
     ACCOUNT_RESET,
     ACCOUNT_PASSWORD_SET,
     ACCOUNT_MFA_ENROLLED,
+    ACCOUNT_LOCKED,
     SUBJECT_CREATED,
     SUBJECT_RENAMED,
     SUBJECT_DEACTIVATED,
     SUBJECT_REACTIVATED,
     ROSTER_UPLOADED,
     ROSTER_APPLIED,
+    ROSTER_DISCARDED,
     GROUP_CREATED,
     GROUP_COURSE_CHANGED,
     GROUP_LOCKED,

@@ -1,6 +1,6 @@
 # Hosting the app for colleagues
 
-This guide covers what it takes to move from the local proof of concept (`docs/RUN_LOCALLY.md`) to a site colleagues can open. **Nothing here has been done yet.** Real cadet data must not be loaded until every item in section 7 is ticked.
+This guide covers what it takes to move from the local proof of concept (`docs/RUN_LOCALLY.md`) to a site colleagues can open. **Nothing here has been done yet.** Real cadet data must not be loaded until every item in section 8 is ticked.
 
 ---
 
@@ -23,22 +23,55 @@ Things that look like workarounds, and why to avoid them:
 ### The closest option to "on our Microsoft setup"
 The company's OneDrive runs on Microsoft 365, which comes with a Microsoft Entra ID tenant (the company's work accounts). **Azure App Service** in that same tenant is the matching place to *run* the app. It is the option REQUIREMENTS.md already prefers. Colleagues sign in with the same work accounts they use for OneDrive, and the data stays inside the organisation's Microsoft environment.
 
-The rest of this guide describes that route. Section 6 covers an internal server instead.
+---
+
+## 2. The simplest options at a glance
+
+Three realistic ways to put the site online. Whichever you pick, the code changes in section 4 are needed, and the proof of concept stays `localhost`-only until hosting is decided (REQUIREMENTS.md).
+
+| | A. Azure "Web App + Database" | B. A computer on the office network | C. Beginner-friendly host |
+|---|---|---|---|
+| **What it is** | Azure App Service and PostgreSQL, created by one wizard in the Azure portal | A PC or small server inside the office, run by IT | A company that runs Python sites for you (e.g. PythonAnywhere, Render) |
+| **Effort** | Low to medium: point-and-click wizard, no servers to look after | Medium: someone must keep it switched on, patched and backed up | Lowest: sign up in a browser, upload the code or connect GitHub |
+| **Cost** | A monthly Azure charge for a small app and database (IT can price it) | No new spend if the hardware exists | Free tiers to try; a small monthly fee for real use |
+| **Who must approve** | IT (Azure subscription) and data protection | IT (network, firewall, certificate) and data protection | Data protection (a third party holds the data) |
+| **Sign in with Microsoft** | Works, and fits best: same tenant as OneDrive | Works if colleagues can reach the server | Works (it's just a web address), but data sits outside the organisation |
+| **OK for real cadet data?** | **Yes, once signed off. Recommended.** | Yes, if IT provides HTTPS and backups | Only with explicit data-protection sign-off |
+
+### A. Azure "Web App + Database" (recommended)
+The easiest Azure route needs no command line:
+1. In the Azure portal, choose **Create a resource**, search for **Web App + Database**, and select it.
+2. Pick the subscription and resource group IT gives you, a region approved by data protection, and a name. Set **Runtime stack** to Python and **Engine** to PostgreSQL – Flexible Server.
+3. Choose the smallest hosting plan offered for real use (IT will advise), then **Review + create**.
+4. The wizard creates the web app, a database on a private network and the link between them. It saves the database connection details in the web app's settings, under its own names. Copy them into the `DB_*` settings this app reads (section 5.3).
+5. To deploy without the command line, use **Deployment Center** in the web app to connect the GitHub repository (every push then deploys), or the **Azure App Service** extension in VS Code (right-click the project → *Deploy to Web App*).
+6. Then follow sections 5.3 to 5.7 for settings, the first admin, access limits and backups.
+
+Section 5 shows the same setup with the Azure command line, step by step.
+
+### B. A computer on the office network
+Best when Azure isn't available and IT already runs internal servers. IT provides a fixed internal name (e.g. `cadet-reports.internal`), a certificate for HTTPS, a firewall rule that allows the office network only, and backups. The app runs behind a web server such as nginx or IIS rather than `runserver`. A Windows machine needs a Windows-capable production server such as waitress (another new dependency), because gunicorn runs on Linux only. Details are in section 7.
+
+### C. Beginner-friendly hosts
+- **PythonAnywhere:** everything happens in the browser. Upload the code, run the Django web-app wizard, and set the environment variables. It offers an EU-hosted option.
+- **Render:** connect the GitHub repository; it builds and deploys on every push, and offers PostgreSQL.
+
+These are the quickest way to get a working address, but the data is held by a company outside the organisation. REQUIREMENTS.md allows that only with data-protection sign-off. Even a demo with fake names means relaxing the `localhost`-only rule for the proof of concept, so agree that first.
 
 ---
 
-## 2. Who needs to be involved
+## 3. Who needs to be involved
 
 | Who | What they provide |
 |---|---|
 | **Data-protection owner** | Sign-off that Azure (and the chosen region) is acceptable for cadet data, and the retention period (REQUIREMENTS.md open questions). |
 | **IT / Azure administrator** | An Azure subscription (or a resource group in an existing one), permission to create App Service and PostgreSQL resources, network rules, and billing. |
-| **Entra ID administrator** | The app registration for "Sign in with Microsoft" (section 5). |
-| **You (developer)** | The code changes in section 3, deployment, and creating the first admin. |
+| **Entra ID administrator** | The app registration for "Sign in with Microsoft" (section 6). |
+| **You (developer)** | The code changes in section 4, deployment, and creating the first admin. |
 
 ---
 
-## 3. Code changes needed before hosting
+## 4. Code changes needed before hosting
 
 The proof of concept is built to run locally. These changes are still needed before it can run on App Service. Each new package needs your approval first (project rule).
 
@@ -50,24 +83,25 @@ The proof of concept is built to run locally. These changes are still needed bef
 | 4 | Set `SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")` | App Service handles HTTPS in front of the app and passes plain HTTP inside. Without this setting, the HTTPS redirect loops forever and sign-in forms fail the CSRF check. |
 | 5 | Decide how the first admin signs in when `LOGIN_MODE=microsoft` | `createadmin` makes a *local* account, and `microsoft` mode refuses local sign-in, so nobody could approve the first Microsoft user. Either run in `both` mode (local admin with MFA plus Microsoft for everyone else), or extend `createadmin` to make a Microsoft-linked admin. |
 | 6 | Make `DJANGO_DEBUG` default to off | Today it defaults to on. A server started without the variable would show debug pages and allow MFA to be switched off. |
-| 7 | Limit repeated sign-in attempts | There is no limit on password guesses yet. |
-| 8 | Fix the remaining review items | The other bugs from the code review (group number `..`, long names failing on PostgreSQL, ID formats, inactive subjects, unarchive skipping the lock, and so on). |
-| 9 | Test against PostgreSQL | Run the test suite once with `DB_ENGINE=postgresql` against a test database. SQLite is more lenient (e.g. about text length). |
+| 7 | Test against PostgreSQL | Run the test suite once with `DB_ENGINE=postgresql` against a test database. SQLite is more lenient (e.g. about text length). |
+| 8 | Optional: handle two admins creating the same new group at the same moment | Very rare; today the second admin gets an error page and nothing is half-applied. |
+
+Already done: sign-in attempt limits (5 failures lock an account for 15 minutes) and the other code-review fixes.
 
 ---
 
-## 4. Azure App Service: step by step
+## 5. Azure App Service: step by step
 
 Replace everything in `<angle brackets>`. Commands use the Azure CLI (`az`); every step can also be done in the Azure portal.
 
-### 4.1 Prepare
+### 5.1 Prepare
 1. Install the Azure CLI and sign in with your work account:
    ```bash
    az login
    ```
 2. Choose a **region** approved by data protection (e.g. the region closest to you), and names for the resources.
 
-### 4.2 Create the resources
+### 5.2 Create the resources
 ```bash
 # A folder (resource group) for everything belonging to this app
 az group create --name <rg-cadet-reports> --location <region>
@@ -91,7 +125,7 @@ The site address becomes `https://<cadet-reports>.azurewebsites.net`. The app is
 
 **Network access to the database.** Ask IT to choose: either *private access* (the database is only reachable from the web app through a virtual network, which is the safer option), or public access limited by firewall rules to the web app's outbound addresses. Never open the database to the whole internet.
 
-### 4.3 Configure the app
+### 5.3 Configure the app
 Generate a secret key once and keep it private:
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(50))"
@@ -118,7 +152,7 @@ az webapp config set --resource-group <rg-cadet-reports> --name <cadet-reports> 
 ```
 `0.0.0.0` is correct **here only**. Inside App Service the app runs in a container that can only be reached through Azure's HTTPS front end. On your own machine, keep using plain `runserver` (127.0.0.1).
 
-### 4.4 Deploy the code
+### 5.4 Deploy the code
 From the project folder, package the committed code (so `.env`, `.venv` and `db.sqlite3` are never uploaded) and deploy it:
 ```bash
 git archive --format=zip -o app.zip HEAD
@@ -126,7 +160,7 @@ az webapp deploy --resource-group <rg-cadet-reports> --name <cadet-reports> --sr
 ```
 App Service installs `requirements.txt` during the deploy.
 
-### 4.5 Set up the database and the first admin
+### 5.5 Set up the database and the first admin
 Open a shell on the running app, which counts as "the command line on the host machine":
 ```bash
 az webapp ssh --resource-group <rg-cadet-reports> --name <cadet-reports>
@@ -140,18 +174,18 @@ Sign in at `https://<cadet-reports>.azurewebsites.net`, set the password, and en
 
 Repeat `migrate` after every deploy that adds database changes.
 
-### 4.6 Limit who can reach the site
+### 5.6 Limit who can reach the site
 In the portal: *Web app → Networking → Access restrictions*. Allow only the company's network ranges or VPN (IT supplies them) and deny everything else. Alternatively, IT can put the app behind a private endpoint so it is only reachable on the internal network.
 
-### 4.7 Backups
+### 5.7 Backups
 Azure Database for PostgreSQL takes automatic backups (7 days by default; adjustable up to 35). Set this to match the retention period from data protection. Test a restore once before relying on it.
 
-### 4.8 Optional: company domain
+### 5.8 Optional: company domain
 To use an address like `cadet-reports.<company>.com`, add it under *Web app → Custom domains*, add a managed certificate, and include it in `DJANGO_ALLOWED_HOSTS`.
 
 ---
 
-## 5. Switching on "Sign in with Microsoft"
+## 6. Switching on "Sign in with Microsoft"
 
 Done by the **Entra ID administrator**, after the app is hosted.
 
@@ -172,13 +206,13 @@ Done by the **Entra ID administrator**, after the app is hosted.
    ```
 9. Test it: a colleague signs in with Microsoft and sees "pending". An admin approves them under *Accounts*.
 
-Use `both` until item 5 in section 3 is resolved. After that, `microsoft` alone is possible.
+Use `both` until item 5 in section 4 is resolved. After that, `microsoft` alone is possible.
 
 ---
 
-## 6. Alternative: an internal server or VM
+## 7. Alternative: an internal server or VM
 
-If Azure isn't approved, IT can provide a Linux server on the company network. The same section 3 changes apply, plus:
+If Azure isn't approved, IT can provide a Linux server on the company network. The same section 4 changes apply, plus:
 - Install Python, PostgreSQL (or point at an existing one) and a reverse proxy such as nginx in front of gunicorn.
 - The reverse proxy handles HTTPS with a certificate from IT, and sets the `X-Forwarded-Proto` header.
 - Run gunicorn as a service (systemd) bound to `127.0.0.1`, so only the reverse proxy can reach it.
@@ -188,11 +222,11 @@ A third-party host is only allowed with data-protection sign-off (REQUIREMENTS.m
 
 ---
 
-## 7. Go-live checklist
+## 8. Go-live checklist
 
 - [ ] Data-protection sign-off on hosting, region and data handling
 - [ ] Retention period agreed; backup retention set to match
-- [ ] Section 3 code changes done, tests passing (including on PostgreSQL)
+- [ ] Section 4 code changes done, tests passing (including on PostgreSQL)
 - [ ] `DJANGO_DEBUG=false`, a unique `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` set
 - [ ] HTTPS-only switched on; the site never answers on plain HTTP
 - [ ] Database not reachable from the internet

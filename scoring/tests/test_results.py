@@ -53,6 +53,15 @@ class ResultsTests(TestCase):
         self.assertEqual(result.averages["teamwork"], 4)  # (3 + 5) / 2
         self.assertEqual(result.averages["attire"], 5)
 
+    def test_cadet_missing_from_a_saved_set_counts_as_3_in_it(self):
+        make_score_set(self.inst1, self.drill, self.group, {self.alice: scores(5), self.bob: scores(5)})
+        # Saved before Bob joined the group, so it has no row for him.
+        make_score_set(self.inst2, self.drill, self.group, {self.alice: scores(5)})
+        bob = group_results(self.group)[1]
+        self.assertEqual(set(bob.averages.values()), {4})  # (5 + 3) / 2
+        self.assertEqual(bob.total, 24)
+        self.assertEqual(set(group_results(self.group)[0].averages.values()), {5})
+
     def test_cadet_without_rows_is_no_data(self):
         make_score_set(self.inst1, self.drill, self.group, {self.alice: scores(4)})
         results = group_results(self.group)
@@ -60,14 +69,14 @@ class ResultsTests(TestCase):
         self.assertIsNone(results[1].total)
         self.assertFalse(results[1].flagged)
 
-    def test_cadet_added_after_save_not_counted_for_that_set(self):
+    def test_cadet_added_after_save_counts_as_3_for_that_set(self):
         make_score_set(self.inst1, self.drill, self.group, {self.alice: scores(5)})
         make_score_set(self.inst2, self.drill, self.group, {self.alice: scores(5)})
         carol = Cadet.objects.create(group=self.group, name="Carol Poe", position=3)
-        make_score_set(self.inst1, self.lead, self.group, {carol: scores(2)})
+        make_score_set(self.inst1, self.lead, self.group, {carol: scores(1)})
         results = group_results(self.group)
         self.assertEqual(results[2].cadet, carol)
-        self.assertEqual(set(results[2].averages.values()), {2})
+        self.assertEqual(set(results[2].averages.values()), {2})  # (1 + 3 + 3) / 3 = 2.33
         self.assertIsNone(results[1].averages)
 
     def test_inactive_cadets_excluded(self):

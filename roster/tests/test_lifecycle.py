@@ -99,6 +99,19 @@ class GroupLifecycleTests(TestCase):
         self.assertEqual(self.status_of(), "active")
         self.assertTrue(AuditEvent.objects.filter(action=actions.GROUP_UNARCHIVED).exists())
 
+    def test_unarchive_restores_locked_status(self):
+        make_group("C216", status="locked")
+        self.client.post(url("group_archive"))
+        self.assertEqual(self.status_of(), "archived")
+        self.client.post(url("group_unarchive"))
+        self.assertEqual(self.status_of(), "locked")
+
+    def test_unarchive_restores_active_status(self):
+        make_group("C216")
+        self.client.post(url("group_archive"))
+        self.client.post(url("group_unarchive"))
+        self.assertEqual(self.status_of(), "active")
+
     def test_invalid_transition_no_change(self):
         cases = [
             ("group_lock", "locked", "Cannot lock a group that is locked."),

@@ -117,11 +117,51 @@ python manage.py test
 
 All tests should pass. They use a separate temporary database and don't touch `db.sqlite3`.
 
-## 11. Start again from scratch
+## 11. Resetting passwords
+
+There is no "forgot password" link and no email. Passwords are reset by an admin, or from the command line on the machine running the app.
+
+### A user forgot their password, lost their authenticator, or is locked out
+1. Sign in as an admin and open **Accounts**.
+2. Press **Reset** on the user's row. (The button only appears for local accounts. Microsoft accounts reset their passwords through Microsoft.)
+3. The site shows a new **temporary password once**. Give it to the user.
+
+The reset also:
+- removes their authenticator app, so they scan a new QR code at the next sign-in (if MFA is on);
+- clears the sign-in lock (see below);
+- makes them choose a new password at the next sign-in.
+
+The reset is recorded in the audit log.
+
+### The sign-in lock
+After **5 wrong passwords or authenticator codes in a row**, the account is locked for **15 minutes**, even with the right password. The sign-in page then says "Too many failed sign-in attempts". Either wait 15 minutes or ask an admin to press **Reset**. Locks are recorded in the audit log.
+
+### The only admin forgot their password
+Use the command line in the project folder, with the virtual environment active:
+
+```bash
+python manage.py changepassword admin
+```
+
+It asks for the new password twice. You then sign in with it as normal. Your authenticator app stays linked. If the account is locked, wait 15 minutes.
+
+### The only admin lost their authenticator app
+`changepassword` doesn't remove the authenticator link. Instead, create a second admin, sign in as them, and **Reset** the first:
+
+```bash
+python manage.py createadmin --username admin2 --full-name "Backup Admin"
+```
+
+Or, while testing locally, switch MFA off for the session (`MFA_REQUIRED=false`, section 5).
+
+### Throwaway test data only
+If none of this matters because the data is fake, delete `db.sqlite3` and start again (section 12).
+
+## 12. Start again from scratch
 
 Stop the server, delete `db.sqlite3`, then repeat steps 4, 6 and 7.
 
-## 12. Settings you might change locally
+## 13. Settings you might change locally
 
 All settings are environment variables; the full list is in `README.md`. The useful ones locally:
 
@@ -133,7 +173,7 @@ All settings are environment variables; the full list is in `README.md`. The use
 
 Leave `LOGIN_MODE` at `local`. Microsoft sign-in needs an Entra app registration from IT; see `docs/HOSTING.md`.
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 | Problem | Fix |
 |---|---|
@@ -142,6 +182,7 @@ Leave `LOGIN_MODE` at `local`. Microsoft sign-in needs an Entra app registration
 | `no such table` | Run `python manage.py migrate`. |
 | `Database already has groups` from `seed_demo` | Demo data is already loaded. Delete `db.sqlite3` to start again. |
 | `That port is already in use` | Another server is running. Stop it, or use `python manage.py runserver 127.0.0.1:8001`. |
-| Lost the temporary admin password | Create another admin with a different username via `createadmin`, sign in, and use *Reset* on the first account. |
+| Lost the temporary admin password | Run `python manage.py changepassword admin` (section 11). |
+| "Too many failed sign-in attempts" | Wait 15 minutes, or an admin presses *Reset* on the account (section 11). |
 | Authenticator code always rejected | Check the phone's clock is set automatically. Codes depend on the exact time. |
 | Signed out unexpectedly | Sessions end after 30 minutes without activity, or when the browser closes. |

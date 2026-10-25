@@ -1,4 +1,7 @@
-from django.test import TestCase, override_settings
+import time
+from unittest import mock
+
+from django.test import Client, TestCase, override_settings
 
 from accounts.tests.helpers import make_user
 
@@ -86,3 +89,57 @@ class LoginTests(TestCase):
         response = self.client.get("/accounts/login/")
         self.assertContains(response, 'type="password"')
         self.assertContains(response, "/accounts/microsoft/login/")
+
+
+@override_settings(MFA_REQUIRED=False, LOGIN_MODE="local")
+class LoginLockoutTests(TestCase):
+    LOCKED = "Too many failed sign-in attempts"
+
+    def setUp(self):
+        self.user = make_user()
+
+    def attempt(self, password=PASSWORD, client=None, username="inst"):
+        client = client or self.client
+        return client.post("/accounts/login/", {"username": username, "password": password})
+
+    def fail(self, times, **kwargs):
+        for _ in range(times):
+            self.attempt("wrong", **kwargs)
+
+    def test_five_failures_block_even_the_right_password(self):
+        self.fail(5)
+        response = self.attempt()
+        self.assertContains(response, self.LOCKED)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_four_failures_do_not_block(self):
+        self.fail(4)
+        self.assertRedirects(self.attempt(), "/", fetch_redirect_response=False)
+
+    def test_lock_applies_from_another_browser(self):
+        self.fail(5)
+        other = Client()
+        self.assertContains(self.attempt(client=other), self.LOCKED)
+        self.assertNotIn("_auth_user_id", other.session)
+
+    def test_lock_does_not_affect_other_users(self):
+        make_user("other")
+        self.fail(5)
+        response = self.attempt(username="other")
+        self.assertRedirects(response, "/", fetch_redirect_response=False)
+
+    def test_success_resets_the_count(self):
+        self.fail(4)
+        self.attempt()
+        self.client.post("/accounts/logout/")
+        self.fail(4)
+        self.assertRedirects(self.attempt(), "/", fetch_redirect_response=False)
+
+    def test_lock_expires_after_15_minutes(self):
+        start = time.time()
+        with mock.patch("time.time", return_value=start):
+            self.fail(5)
+        with mock.patch("time.time", return_value=start + 14 * 60):
+            self.assertContains(self.attempt(), self.LOCKED)
+        with mock.patch("time.time", return_value=start + 15 * 60 + 1):
+            self.assertRedirects(self.attempt(), "/", fetch_redirect_response=False)

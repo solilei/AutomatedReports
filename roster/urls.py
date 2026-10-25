@@ -18,4 +18,5 @@ urlpatterns = [
     path("roster/upload/", views.upload, name="upload"),
     path("roster/upload/<int:pk>/columns/", views.upload_columns, name="upload_columns"),
     path("roster/upload/<int:pk>/preview/", views.upload_preview, name="upload_preview"),
+    path("roster/upload/<int:pk>/discard/", views.upload_discard, name="upload_discard"),
 ]

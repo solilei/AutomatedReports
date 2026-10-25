@@ -14,7 +14,14 @@ from scoring.models import ScoreSet, Subject
 from . import lifecycle
 from .forms import ColumnForm, UploadForm
 from .models import Cadet, Group, RosterColumnPreference, RosterUpload
-from .services import apply_upload, build_preview, check_groups, parse_rows, read_sheet
+from .services import (
+    apply_upload,
+    build_preview,
+    check_groups,
+    parse_rows,
+    preview_key,
+    read_sheet,
+)
 
 
 def home(request):
@@ -182,9 +189,8 @@ def upload(request):
 @admin_required
 def upload_columns(request, pk):
     upload = get_object_or_404(RosterUpload, pk=pk)
-    if upload.status == "applied":
-        messages.info(request, "This upload has already been applied.")
-        return redirect("roster:upload")
+    if closed := _closed_upload(request, upload):
+        return closed
     headers, rows = read_sheet(bytes(upload.file_content))
     form = ColumnForm(headers, request.POST or None)
     errors = []
@@ -216,29 +222,75 @@ def upload_columns(request, pk):
     )
 
 
+def _closed_upload(request, upload):
+    """Redirect away from an applied or discarded upload; None if it is still open."""
+    if upload.status == "applied":
+        messages.info(request, "This upload has already been applied.")
+    elif upload.status == "discarded":
+        messages.info(request, "This upload was discarded.")
+    else:
+        return None
+    return redirect("roster:upload")
+
+
 @admin_required
 def upload_preview(request, pk):
     upload = get_object_or_404(RosterUpload, pk=pk)
     if upload.status == "uploaded":
         return redirect("roster:upload_columns", pk=upload.pk)
-    if upload.status == "applied":
-        messages.info(request, "This upload has already been applied.")
-        return redirect("roster:upload")
+    if closed := _closed_upload(request, upload):
+        return closed
+    warning = ""
     if request.method == "POST":
         with transaction.atomic():
             upload = RosterUpload.objects.select_for_update().get(pk=pk)
-            if upload.status != "parsed":
-                messages.info(request, "This upload has already been applied.")
-                return redirect("roster:upload")
+            if closed := _closed_upload(request, upload):
+                return closed
             errors = check_groups(list(upload.parsed["groups"]), upload.parsed["id_mode"])
-            if not errors:
+            changes = build_preview(upload)
+            # A missing key (no browser form) skips the check; the page always sends one.
+            seen_key = request.POST.get("preview_key")
+            if seen_key and seen_key != preview_key(changes):
+                warning = (
+                    "The roster changed since this preview was shown. "
+                    "Check the changes below and confirm again."
+                )
+            elif not errors:
                 apply_upload(upload, request.user)
                 messages.success(request, "Roster applied.")
                 return redirect("home")
     else:
         errors = check_groups(list(upload.parsed["groups"]), upload.parsed["id_mode"])
+        changes = build_preview(upload)
     return render(
         request,
         "roster/upload_preview.html",
-        {"upload": upload, "errors": errors, "changes": build_preview(upload)},
+        {
+            "upload": upload,
+            "errors": errors,
+            "warning": warning,
+            "changes": changes,
+            "preview_key": preview_key(changes),
+        },
     )
+
+
+@admin_required
+@require_POST
+def upload_discard(request, pk):
+    with transaction.atomic():
+        upload = get_object_or_404(RosterUpload.objects.select_for_update(), pk=pk)
+        if closed := _closed_upload(request, upload):
+            return closed
+        upload.status = "discarded"
+        upload.file_content = b""
+        upload.parsed = {}
+        upload.save()
+        log(
+            request.user,
+            actions.ROSTER_DISCARDED,
+            f"Roster '{upload.original_filename}' discarded",
+            details={"upload_id": upload.pk, "filename": upload.original_filename},
+        )
+    messages.success(request, "Upload discarded.")
+    return redirect("roster:upload")

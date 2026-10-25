@@ -6,6 +6,7 @@
 {% if errors %}
 <ul class="errors">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
 {% endif %}
+{% if warning %}<p class="banner warning">{{ warning }}</p>{% endif %}
 {% for change in changes %}
 <section>
   <h2>{{ change.number }}</h2>
@@ -19,7 +20,12 @@
 {% endfor %}
 <form method="post">
   {% csrf_token %}
+  <input type="hidden" name="preview_key" value="{{ preview_key }}">
   <button type="submit"{% if errors %} disabled{% endif %}>Confirm and apply</button>
   <a href="{% url 'roster:upload' %}">Cancel</a>
+</form>
+<form method="post" action="{% url 'roster:upload_discard' upload.pk %}">
+  {% csrf_token %}
+  <button type="submit">Discard upload</button> (deletes the stored file; nothing is applied)
 </form>
 {% endblock %}
