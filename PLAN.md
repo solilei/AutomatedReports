@@ -930,7 +930,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 18. Group lifecycle: lock, unlock, archive, unarchive, delete
+### [x] 18. Group lifecycle: lock, unlock, archive, unarchive, delete
 
 **Files**
 - Create `roster/lifecycle.py`.
