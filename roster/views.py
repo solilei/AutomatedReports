@@ -1,11 +1,14 @@
-from django.shortcuts import redirect, render
+from django.contrib import messages
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import admin_required
 from audit import actions
 from audit.service import log
 
-from .forms import UploadForm
-from .models import RosterUpload
+from .forms import ColumnForm, UploadForm
+from .models import RosterColumnPreference, RosterUpload
+from .services import check_groups, parse_rows, read_sheet
 
 
 def home(request):
@@ -32,5 +35,49 @@ def upload(request):
                 "upload_id": record.pk,
             },
         )
-        return redirect(f"/roster/upload/{record.pk}/columns/")
+        return redirect("roster:upload_columns", pk=record.pk)
     return render(request, "roster/upload.html", {"form": form})
+
+
+@admin_required
+def upload_columns(request, pk):
+    upload = get_object_or_404(RosterUpload, pk=pk)
+    if upload.status == "applied":
+        messages.info(request, "This upload has already been applied.")
+        return redirect("roster:upload")
+    headers, rows = read_sheet(bytes(upload.file_content))
+    form = ColumnForm(headers, request.POST or None)
+    errors = []
+    if request.method == "POST" and form.is_valid():
+        group_col = int(form.cleaned_data["group_col"])
+        name_col = int(form.cleaned_data["name_col"])
+        id_col = int(form.cleaned_data["id_col"]) if form.cleaned_data["id_col"] else None
+        result = parse_rows(rows, group_col, name_col, id_col)
+        errors = result.errors or check_groups(list(result.groups), id_col is not None)
+        if not errors:
+            upload.group_col, upload.name_col, upload.id_col = group_col, name_col, id_col
+            upload.parsed = {"id_mode": id_col is not None, "groups": result.groups}
+            upload.status = "parsed"
+            upload.save()
+            pref = RosterColumnPreference.get()
+            pref.group_header = headers[group_col]
+            pref.name_header = headers[name_col]
+            pref.id_header = headers[id_col] if id_col is not None else ""
+            pref.save()
+            return redirect("roster:upload_preview", pk=upload.pk)
+    return render(
+        request,
+        "roster/upload_columns.html",
+        {
+            "form": form,
+            "upload": upload,
+            "headers": headers,
+            "sample_rows": rows[:5],
+            "errors": errors,
+        },
+    )
+
+
+@admin_required
+def upload_preview(request, pk):
+    raise Http404

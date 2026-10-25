@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Choose columns{% endblock %}
+{% block content %}
+<h1>Choose columns</h1>
+<p>{{ upload.original_filename }} (course {{ upload.course_number }})</p>
+<table>
+  <thead><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>
+    {% for row in sample_rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if errors %}
+<ul class="errors">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+{% endif %}
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Continue</button>
+</form>
+<p><a href="{% url 'roster:upload' %}">Cancel</a></p>
+{% endblock %}

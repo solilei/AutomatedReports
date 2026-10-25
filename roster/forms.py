@@ -1,6 +1,8 @@
 from django import forms
 from django.conf import settings
+from openpyxl.utils import get_column_letter
 
+from .models import RosterColumnPreference
 from .services import RosterError, read_sheet
 
 
@@ -25,3 +27,38 @@ class UploadForm(forms.Form):
             raise forms.ValidationError("The first row must contain column headers.")
         self.content = content
         return file
+
+
+class ColumnForm(forms.Form):
+    group_col = forms.ChoiceField(label="Group column")
+    name_col = forms.ChoiceField(label="Name column")
+    id_col = forms.ChoiceField(label="Cadet ID column", required=False)
+
+    def __init__(self, headers, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        choices = [
+            (str(i), h or f"(column {get_column_letter(i + 1)}, no header)")
+            for i, h in enumerate(headers)
+        ]
+        self.fields["group_col"].choices = choices
+        self.fields["name_col"].choices = choices
+        self.fields["id_col"].choices = [("", "— none —")] + choices
+        pref = RosterColumnPreference.get()
+        normalised = [h.strip().lower() for h in headers]
+        for field, remembered in [
+            ("group_col", pref.group_header),
+            ("name_col", pref.name_header),
+            ("id_col", pref.id_header),
+        ]:
+            remembered = remembered.strip().lower()
+            if remembered and remembered in normalised:
+                self.fields[field].initial = str(normalised.index(remembered))
+
+    def clean(self):
+        data = super().clean()
+        group, name, id_col = (data.get(k) for k in ("group_col", "name_col", "id_col"))
+        if group and name and (group == name or (id_col and id_col in (group, name))):
+            raise forms.ValidationError(
+                "Group, Name and Cadet ID must be different columns."
+            )
+        return data
