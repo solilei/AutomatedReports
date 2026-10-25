@@ -2,8 +2,6 @@
 
 A Python web app where instructors score cadets on six soft-skill attributes, the site averages the scores per cadet, and admins export a filled-in copy of the Cadet Soft Skills Report template (see `report.md`).
 
-Items marked _(assumed default)_ were proposed but not explicitly confirmed; see Open Questions.
-
 ---
 
 ## 1. Platform and Proof of Concept
@@ -71,13 +69,13 @@ Items marked _(assumed default)_ were proposed but not explicitly confirmed; see
 - [ ] Export group reports
 - [ ] View the audit log
 - [ ] See all score sets
-- [ ] _(assumed default)_ The last remaining admin cannot be demoted or deactivated
+- [ ] The last remaining admin cannot be demoted or deactivated
 
 ## 4. Roster Upload
 
 - [ ] Admin-only
-- [ ] Accepts `.xlsx` files only _(assumed default)_
-- [ ] Enforces a maximum file size _(assumed default; limit not set)_
+- [ ] Accepts `.xlsx` files only
+- [ ] Enforces a maximum file size of 5 MB
 - [ ] Roster contains one column for group number, one for cadet name, plus other columns that are ignored
 - [ ] After upload, the site shows the file's header row and the admin picks the Group column and the Name column
 - [ ] The site remembers the last column choice and pre-selects it next time
@@ -144,9 +142,9 @@ Items marked _(assumed default)_ were proposed but not explicitly confirmed; see
 - [ ] A blank score inside a **saved** score set counts as 3
 - [ ] Instructors who never saved a score set for the group are not counted
 - [ ] A cadet with no saved scores at all shows "no data", not 3.00
-- [ ] Averages and sums shown to 2 decimal places _(assumed default)_
+- [ ] Averages are rounded to a whole number (no decimal places); the sum is the sum of the six rounded averages
 - [ ] Each average cell is coloured using the template's band colours, by rounding the average to the nearest point (5 green → 1 red)
-- [ ] Exactly x.5 rounds up, so 2.5 counts as C _(assumed default)_
+- [ ] Exactly x.5 rounds up, so 2.5 counts as C
 - [ ] A cadet is **flagged** if any single attribute average is below 2.5 (below C, which triggers HGS consultation per the template)
 - [ ] Inactive cadets are excluded from results
 
@@ -200,8 +198,8 @@ Items marked _(assumed default)_ were proposed but not explicitly confirmed; see
 - [ ] **Production database**: PostgreSQL host to be chosen along with production hosting
 - [ ] **Network access and HTTPS**: how colleagues will reach the site and how HTTPS will be provided; depends on hosting
 - [ ] **Data-protection sign-off**: confirm the chosen hosting and data handling are acceptable before real cadet data is loaded
-- [ ] **Confirm assumed defaults**:
-  - [ ] `.xlsx`-only uploads, and the maximum file size to allow
-  - [ ] Averages and sums shown to 2 decimal places
-  - [ ] An average of exactly 2.5 counts as C (rounds up)
-  - [ ] The last remaining admin cannot be demoted or deactivated
+- [x] **Confirm assumed defaults** (confirmed 2026-10-25):
+  - [x] `.xlsx`-only uploads, maximum file size 5 MB
+  - [x] Averages and sums shown as whole numbers (changed from 2 decimal places)
+  - [x] An average of exactly 2.5 counts as C (rounds up)
+  - [x] The last remaining admin cannot be demoted or deactivated
