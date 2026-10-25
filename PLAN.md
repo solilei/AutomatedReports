@@ -258,7 +258,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 4. First admin from the command line
+### [x] 4. First admin from the command line
 
 **Files**
 - Create `accounts/management/__init__.py`, `accounts/management/commands/__init__.py`, `accounts/management/commands/createadmin.py`.
