@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Group {{ group.number }}{% endblock %}
+{% block content %}
+<h1>Group {{ group.number }}</h1>
+<p>Course {{ group.course_number }} · {{ group.get_status_display }} · {{ active_count }} active cadet{{ active_count|pluralize }}</p>
+{% if subjects %}
+<form method="get" action="{% url 'scoring:score_go' group.number %}">
+  <label for="subject">Subject</label>
+  <select name="subject" id="subject">
+    {% for subject in subjects %}<option value="{{ subject.pk }}">{{ subject.name }}</option>{% endfor %}
+  </select>
+  <button type="submit">Score</button>
+</form>
+{% else %}
+<p>No active subjects.</p>
+{% endif %}
+<h2>My score sets for this group</h2>
+{% if score_sets %}
+<ul>
+  {% for score_set in score_sets %}
+  <li><a href="{% url 'scoring:score_grid' group.number score_set.subject_id %}">{{ score_set.subject.name }}</a> — last saved {{ score_set.updated_at|date:"Y-m-d H:i" }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>None yet.</p>
+{% endif %}
+{% endblock %}

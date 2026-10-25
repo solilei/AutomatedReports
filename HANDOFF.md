@@ -17,9 +17,10 @@
 - Slice 14 (Scoring models: `scoring/attributes.py`, `ScoreSet` and `CadetScore` in `scoring/models.py`, migration `0002`, `scoring/tests/helpers.py` `make_score_set`) committed and pushed at `e3a7bdb`. 7 new tests; 166 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 15 (Score grid view: `scoring/access.py` `get_visible_group`, `score_go`/`score_grid` views and URLs, `score_grid.html`) committed and pushed at `fdb084e`. 12 new tests; 178 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 16 (Score grid save: `scoring/services.py` `parse_submission`/`count_blanks`/`save_score_set`, POST handling in `score_grid`, errors/warning/`confirm_blanks` in `score_grid.html`) committed and pushed at `e9ecb0d`. 16 new tests; 194 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 17 (Home group dropdown, group page, admin group list: `home`/`group_go`/`group_detail`/`group_list` in `roster/views.py`, URLs, `home.html`, `group_detail.html`, `group_list.html`, `score_go` fallback to `roster:group_detail`, back link in `score_grid.html`, admin "Groups" nav link) done, not committed. 13 new tests; 207 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 17 (Home group dropdown, group page, admin group list) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 18 (group lifecycle: lock, unlock, archive, unarchive, delete) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
@@ -83,6 +84,12 @@
 - Slice 16: comments are stripped before saving and comparing; a re-rendered grid keeps the unstripped submitted text.
 - Slice 16: POST fields missing from the request count as blank; extra fields (inactive or unknown cadets) are ignored.
 - Slice 16: two instructors saving at once is untested; each has their own `ScoreSet`, so they don't collide, but one instructor double-clicking Save relies on `get_or_create` plus the unique constraints.
+- Slice 17: `test_group_pages.py` has 6 tests beyond PLAN.md's 7 (`test_home_no_groups`, `test_group_detail_shows_summary`, `test_unknown_group_detail_404`, `test_nav_groups_link_admin_only`, `test_score_go_missing_subject_redirects_to_group_detail`, `test_grid_links_back_to_group`).
+- Slice 17: at the user's request I edited the frozen Slice 15 test `test_score_go_missing_or_invalid_subject_redirects_home` (renamed `..._redirects_to_group_detail`, expects `roster:group_detail`), as PLAN.md said Slice 17 would change it.
+- Slice 17: the home, group and group-list pages have not been checked in a browser (tests only). PLAN.md's manual check (Home → pick group → pick subject → score) is still to do. No CSS for the new pages.
+- Slice 17: `score_grid` still doesn't hide inactive subjects on a direct URL; only the group page dropdown does. `score_go` also accepts an inactive subject id.
+- Slice 17: `group_go` shows "Group not found." as an error message; an archived group's number still redirects to `group_detail`, which then 404s for instructors (no "not found" message).
+- Slice 17: `group_detail` counts "active cadets" with correct pluralisation ("1 active cadet"); the home dropdown omits archived groups for admins too (they use the Groups page).
 - Local dev DB: `db.sqlite3` is migrated and holds account `testadmin`, subject `Drill`, and groups C216/C217/C218 (course 216.18) loaded via the services, not the UI, so there are no `ROSTER_UPLOADED` or subject-created events. Start the server with `MFA_REQUIRED=False python manage.py runserver 127.0.0.1:8000` to skip MFA (MFA is on by default).
 - `createadmin` is not atomic with its audit log: if the audit table is missing, the user is created but the command fails and the password is lost.
 ## Decisions made
@@ -90,4 +97,4 @@
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One course number per upload, typed by the admin each time (box starts empty).
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1 to 16 tests are frozen: don't modify test files unless the user asks.
+- Slice 1 to 17 tests are frozen: don't modify test files unless the user asks.

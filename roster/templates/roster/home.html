@@ -2,4 +2,15 @@
 {% block title %}Home{% endblock %}
 {% block content %}
 <h1>Home</h1>
+{% if groups %}
+<form method="get" action="{% url 'roster:group_go' %}">
+  <label for="number">Group</label>
+  <select name="number" id="number">
+    {% for group in groups %}<option value="{{ group.number }}">{{ group.number }} (course {{ group.course_number }}){% if group.status == "locked" %} — locked{% endif %}</option>{% endfor %}
+  </select>
+  <button type="submit">Open</button>
+</form>
+{% else %}
+<p>No groups yet.{% if user.is_admin %} <a href="{% url 'roster:upload' %}">Upload a roster</a>.{% endif %}</p>
+{% endif %}
 {% endblock %}

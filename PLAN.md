@@ -896,7 +896,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 17. Home group dropdown, group page, admin group list
+### [x] 17. Home group dropdown, group page, admin group list
 
 **Files**
 - Change `roster/views.py`, `roster/urls.py`, `roster/templates/roster/home.html`.

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Groups{% endblock %}
+{% block content %}
+<h1>Groups</h1>
+{% if groups %}
+<table>
+  <thead>
+    <tr><th>Number</th><th>Course</th><th>Status</th><th>Active cadets</th><th>Inactive cadets</th><th>Score sets</th></tr>
+  </thead>
+  <tbody>
+    {% for group in groups %}
+    <tr>
+      <td><a href="{% url 'roster:group_detail' group.number %}">{{ group.number }}</a></td>
+      <td>{{ group.course_number }}</td>
+      <td>{{ group.get_status_display }}</td>
+      <td>{{ group.active_count }}</td>
+      <td>{{ group.inactive_count }}</td>
+      <td>{{ group.score_set_count }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No groups yet.</p>
+{% endif %}
+{% endblock %}

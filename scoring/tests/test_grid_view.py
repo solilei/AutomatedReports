@@ -110,12 +110,14 @@ class ScoreGridViewTests(TestCase):
         response = self.client.get(url, {"subject": self.subject.pk})
         self.assertRedirects(response, grid_url(self.group, self.subject))
 
-    def test_score_go_missing_or_invalid_subject_redirects_home(self):
+    def test_score_go_missing_or_invalid_subject_redirects_to_group_detail(self):
         url = reverse("scoring:score_go", args=[self.group.number])
         for query in ({}, {"subject": "abc"}, {"subject": "9999"}):
             with self.subTest(query=query):
                 self.assertRedirects(
-                    self.client.get(url, query), reverse("home"), fetch_redirect_response=False
+                    self.client.get(url, query),
+                    reverse("roster:group_detail", args=[self.group.number]),
+                    fetch_redirect_response=False,
                 )
 
     def test_login_required(self):

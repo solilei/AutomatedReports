@@ -1,18 +1,57 @@
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import admin_required
 from audit import actions
 from audit.service import log
 
+from scoring.access import get_visible_group
+from scoring.models import ScoreSet, Subject
+
 from .forms import ColumnForm, UploadForm
-from .models import RosterColumnPreference, RosterUpload
+from .models import Group, RosterColumnPreference, RosterUpload
 from .services import apply_upload, build_preview, check_groups, parse_rows, read_sheet
 
 
 def home(request):
-    return render(request, "roster/home.html")
+    groups = Group.objects.filter(status__in=[Group.Status.ACTIVE, Group.Status.LOCKED])
+    return render(request, "roster/home.html", {"groups": groups})
+
+
+def group_go(request):
+    number = request.GET.get("number", "").strip().upper()
+    if not Group.objects.filter(number=number).exists():
+        messages.error(request, "Group not found.")
+        return redirect("home")
+    return redirect("roster:group_detail", number=number)
+
+
+def group_detail(request, number):
+    group = get_visible_group(request, number)
+    return render(
+        request,
+        "roster/group_detail.html",
+        {
+            "group": group,
+            "active_count": group.cadets.filter(is_active=True).count(),
+            "subjects": Subject.objects.filter(is_active=True),
+            "score_sets": ScoreSet.objects.filter(instructor=request.user, group=group)
+            .select_related("subject")
+            .order_by("subject__name"),
+        },
+    )
+
+
+@admin_required
+def group_list(request):
+    groups = Group.objects.annotate(
+        active_count=Count("cadets", filter=Q(cadets__is_active=True), distinct=True),
+        inactive_count=Count("cadets", filter=Q(cadets__is_active=False), distinct=True),
+        score_set_count=Count("score_sets", distinct=True),
+    )
+    return render(request, "roster/group_list.html", {"groups": groups})
 
 
 @admin_required

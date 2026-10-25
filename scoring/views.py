@@ -70,9 +70,9 @@ def score_go(request, number):
     try:
         subject_id = int(request.GET.get("subject", ""))
     except ValueError:
-        return redirect("home")
+        return redirect("roster:group_detail", number=group.number)
     if not Subject.objects.filter(pk=subject_id).exists():
-        return redirect("home")
+        return redirect("roster:group_detail", number=group.number)
     return redirect("scoring:score_grid", number=group.number, subject_id=subject_id)
 
 
