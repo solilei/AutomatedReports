@@ -5,6 +5,7 @@ from roster.views import home
 urlpatterns = [
     path("", home, name="home"),
     path("accounts/", include("accounts.urls")),
+    path("audit/", include("audit.urls")),
     path("", include("scoring.urls")),
     path("", include("roster.urls")),
 ]

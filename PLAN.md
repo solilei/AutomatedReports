@@ -1203,7 +1203,7 @@ def group_results(group) -> list[CadetResult]
 
 ---
 
-### [ ] 25. Audit log viewer
+### [x] 25. Audit log viewer
 
 **Files**
 - Create `audit/views.py`, `audit/urls.py`, `audit/templates/audit/event_list.html`.
