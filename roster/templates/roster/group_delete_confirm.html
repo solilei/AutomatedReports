@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Delete group {{ group.number }}{% endblock %}
+{% block content %}
+<h1>Delete group {{ group.number }}</h1>
+<p>Permanently delete group {{ group.number }}, its {{ cadet_count }} cadet{{ cadet_count|pluralize }} and {{ score_set_count }} score set{{ score_set_count|pluralize }}? This cannot be undone. The group number can never be reused. Audit events are kept.</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post">
+  {% csrf_token %}
+  <label for="confirm_number">Type {{ group.number }} to confirm</label>
+  <input type="text" name="confirm_number" id="confirm_number" autocomplete="off">
+  <button type="submit">Delete permanently</button>
+  <a href="{% url 'roster:group_detail' group.number %}">Cancel</a>
+</form>
+{% endblock %}

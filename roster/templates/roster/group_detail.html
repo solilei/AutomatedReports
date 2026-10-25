@@ -24,4 +24,18 @@
 {% else %}
 <p>None yet.</p>
 {% endif %}
+{% if request.user.is_admin %}
+<h2>Manage group</h2>
+{% if group.status == "active" %}
+<form method="post" action="{% url 'roster:group_lock' group.number %}">{% csrf_token %}<button type="submit">Lock</button></form>
+{% elif group.status == "locked" %}
+<form method="post" action="{% url 'roster:group_unlock' group.number %}">{% csrf_token %}<button type="submit">Unlock</button></form>
+{% endif %}
+{% if group.status == "archived" %}
+<form method="post" action="{% url 'roster:group_unarchive' group.number %}">{% csrf_token %}<button type="submit">Unarchive</button></form>
+<p><a href="{% url 'roster:group_delete' group.number %}">Delete permanently…</a></p>
+{% else %}
+<form method="post" action="{% url 'roster:group_archive' group.number %}">{% csrf_token %}<button type="submit">Archive</button></form>
+{% endif %}
+{% endif %}
 {% endblock %}

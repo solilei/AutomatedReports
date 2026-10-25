@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from accounts.decorators import admin_required
 from audit import actions
@@ -10,6 +11,7 @@ from audit.service import log
 from scoring.access import get_visible_group
 from scoring.models import ScoreSet, Subject
 
+from . import lifecycle
 from .forms import ColumnForm, UploadForm
 from .models import Group, RosterColumnPreference, RosterUpload
 from .services import apply_upload, build_preview, check_groups, parse_rows, read_sheet
@@ -52,6 +54,67 @@ def group_list(request):
         score_set_count=Count("score_sets", distinct=True),
     )
     return render(request, "roster/group_list.html", {"groups": groups})
+
+
+def _lifecycle_action(request, number, action):
+    group = get_object_or_404(Group, number=number)
+    error = lifecycle.change_status(group, action, request.user)
+    if error:
+        messages.error(request, error)
+    return redirect("roster:group_detail", number=group.number)
+
+
+@admin_required
+@require_POST
+def group_lock(request, number):
+    return _lifecycle_action(request, number, "lock")
+
+
+@admin_required
+@require_POST
+def group_unlock(request, number):
+    return _lifecycle_action(request, number, "unlock")
+
+
+@admin_required
+@require_POST
+def group_archive(request, number):
+    return _lifecycle_action(request, number, "archive")
+
+
+@admin_required
+@require_POST
+def group_unarchive(request, number):
+    return _lifecycle_action(request, number, "unarchive")
+
+
+@admin_required
+def group_delete(request, number):
+    group = get_object_or_404(Group, number=number)
+    if group.status != Group.Status.ARCHIVED:
+        messages.error(request, lifecycle.refusal("delete", group))
+        return redirect("roster:group_detail", number=group.number)
+    error = None
+    if request.method == "POST":
+        if request.POST.get("confirm_number") != group.number:
+            error = "Type the group number to confirm."
+        else:
+            error = lifecycle.delete_group(group, request.user)
+            if error:
+                messages.error(request, error)
+                return redirect("roster:group_detail", number=group.number)
+            messages.success(request, f"Group {group.number} deleted.")
+            return redirect("roster:group_list")
+    return render(
+        request,
+        "roster/group_delete_confirm.html",
+        {
+            "group": group,
+            "cadet_count": group.cadets.count(),
+            "score_set_count": group.score_sets.count(),
+            "error": error,
+        },
+    )
 
 
 @admin_required
