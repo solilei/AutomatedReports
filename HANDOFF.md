@@ -16,9 +16,10 @@
 - Slice 13 (Roster upload step 3: `GroupChange`/`build_preview`/`apply_upload` in `roster/services.py`, `roster:upload_preview` view and `upload_preview.html` replacing the 404 stub) committed and pushed at `5d37e26`. 18 new tests; 159 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 14 (Scoring models: `scoring/attributes.py`, `ScoreSet` and `CadetScore` in `scoring/models.py`, migration `0002`, `scoring/tests/helpers.py` `make_score_set`) committed and pushed at `e3a7bdb`. 7 new tests; 166 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 15 (Score grid view: `scoring/access.py` `get_visible_group`, `score_go`/`score_grid` views and URLs, `score_grid.html`) committed and pushed at `fdb084e`. 12 new tests; 178 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 16 (Score grid save: `scoring/services.py` `parse_submission`/`count_blanks`/`save_score_set`, POST handling in `score_grid`, errors/warning/`confirm_blanks` in `score_grid.html`) committed and pushed at `e9ecb0d`. 16 new tests; 194 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 16 (Score grid: save POST, blank warning, audit) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 17 (Home group dropdown, group page, admin group list) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
@@ -76,9 +77,17 @@
 - Slice 15: the views have no decorator; login is enforced by `AccessGateMiddleware` (covered by `test_login_required`).
 - Slice 15: the view passes `rows` (dicts with `number`, `cadet`, `added`, `cells`, `comment`) to the template; Slice 16 re-renders with submitted values and will need to extend this structure.
 - Slice 15: "Last saved" shows `updated_at` as `Y-m-d H:i` in the display time zone.
+- Slice 16: `test_grid_save.py` has 1 test beyond PLAN.md's 15 (`test_errors_rerender_with_submitted_values`).
+- Slice 16: the save flow (blank warning, confirm, "Saved.") has not been checked in a browser by the user; PLAN.md's manual check is still to do. Only account creation and the sample roster load were confirmed to work.
+- Slice 16: the `COMMENT_CHANGED` summary text ("<user> changed the comment for <cadet> (<subject>)") and the `{instructor}` in `SCORE_CHANGED` summaries (the username) are my choices; PLAN.md doesn't fix them.
+- Slice 16: comments are stripped before saving and comparing; a re-rendered grid keeps the unstripped submitted text.
+- Slice 16: POST fields missing from the request count as blank; extra fields (inactive or unknown cadets) are ignored.
+- Slice 16: two instructors saving at once is untested; each has their own `ScoreSet`, so they don't collide, but one instructor double-clicking Save relies on `get_or_create` plus the unique constraints.
+- Local dev DB: `db.sqlite3` is migrated and holds account `testadmin`, subject `Drill`, and groups C216/C217/C218 (course 216.18) loaded via the services, not the UI, so there are no `ROSTER_UPLOADED` or subject-created events. Start the server with `MFA_REQUIRED=False python manage.py runserver 127.0.0.1:8000` to skip MFA (MFA is on by default).
+- `createadmin` is not atomic with its audit log: if the audit table is missing, the user is created but the command fails and the password is lost.
 ## Decisions made
 - Django 5.2 LTS + openpyxl, pyotp, segno, msal (approved). PLAN.md D1–D18 accepted.
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One course number per upload, typed by the admin each time (box starts empty).
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 and 15 tests are frozen: don't modify test files unless the user asks.
+- Slice 1 to 16 tests are frozen: don't modify test files unless the user asks.
