@@ -6,8 +6,10 @@ from accounts.decorators import admin_required
 from audit import actions
 from audit.service import log
 
+from .access import get_visible_group
+from .attributes import ATTRIBUTES, SCORE_CHOICES
 from .forms import SubjectForm
-from .models import Subject
+from .models import ScoreSet, Subject
 
 
 @admin_required
@@ -58,3 +60,55 @@ def subject_toggle(request, pk):
     log(request.user, action, f"Subject '{subject.name}' {verb}", details={"name": subject.name})
     messages.success(request, f"Subject '{subject.name}' {verb}.")
     return redirect("scoring:subject_list")
+
+
+def score_go(request, number):
+    group = get_visible_group(request, number)
+    try:
+        subject_id = int(request.GET.get("subject", ""))
+    except ValueError:
+        return redirect("home")
+    if not Subject.objects.filter(pk=subject_id).exists():
+        return redirect("home")
+    return redirect("scoring:score_grid", number=group.number, subject_id=subject_id)
+
+
+def score_grid(request, number, subject_id):
+    group = get_visible_group(request, number)
+    subject = get_object_or_404(Subject, pk=subject_id)
+    score_set = ScoreSet.objects.filter(
+        instructor=request.user, subject=subject, group=group
+    ).first()
+    saved = {row.cadet_id: row for row in score_set.rows.all()} if score_set else {}
+    rows = []
+    for number_, cadet in enumerate(group.cadets.filter(is_active=True), start=1):
+        saved_row = saved.get(cadet.pk)
+        rows.append(
+            {
+                "number": number_,
+                "cadet": cadet,
+                "added": score_set is not None and saved_row is None,
+                "cells": [
+                    {
+                        "field": field,
+                        "name": f"s-{cadet.pk}-{field}",
+                        "value": getattr(saved_row, field) if saved_row else None,
+                    }
+                    for field, _label, _header in ATTRIBUTES
+                ],
+                "comment": saved_row.comment if saved_row else "",
+            }
+        )
+    return render(
+        request,
+        "scoring/score_grid.html",
+        {
+            "group": group,
+            "subject": subject,
+            "score_set": score_set,
+            "rows": rows,
+            "attributes": ATTRIBUTES,
+            "score_choices": SCORE_CHOICES,
+            "editable": group.is_editable,
+        },
+    )

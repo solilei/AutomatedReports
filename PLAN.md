@@ -805,7 +805,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 15. Score grid: view (GET)
+### [x] 15. Score grid: view (GET)
 
 **Files**
 - Create `scoring/access.py`.

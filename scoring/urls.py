@@ -9,4 +9,6 @@ urlpatterns = [
     path("subjects/new/", views.subject_create, name="subject_create"),
     path("subjects/<int:pk>/edit/", views.subject_edit, name="subject_edit"),
     path("subjects/<int:pk>/toggle/", views.subject_toggle, name="subject_toggle"),
+    path("groups/<str:number>/score/", views.score_go, name="score_go"),
+    path("groups/<str:number>/score/<int:subject_id>/", views.score_grid, name="score_grid"),
 ]
