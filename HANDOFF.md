@@ -7,7 +7,7 @@
 - Slice 4 (`createadmin` management command) committed and pushed at `c4ee082`. 4 new tests; 34 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 5 (access gate, `admin_required`, pending and password-set pages) committed and pushed at `d6cc0c5`. 10 new tests; 44 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 6 (authenticator-app MFA: `accounts/mfa.py`, `mfa_setup`, `mfa_verify`, login branch) committed and pushed at `07a9dfd`. 11 new tests; 55 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
-- Slice 7 (account management: `accounts/services.py`, `user_list`/`user_create`/row actions/`user_reset`, Accounts nav link) implemented, not committed. 16 new tests; 71 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 7 (account management: `accounts/services.py`, `user_list`/`user_create`/row actions/`user_reset`, Accounts nav link) committed and pushed at `b98efff`. 16 new tests; 71 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
 - Slice 8 (Microsoft Entra ID sign-in) in PLAN.md, only when the user says to start. Don't write code until then.
@@ -19,7 +19,6 @@
 - A TOTP code can be reused within its validity window; there is no replay protection.
 - `AccessGateMiddleware` exempts `accounts:microsoft_login` and `microsoft_callback`, which don't exist yet (Slice 8); no test covers those entries. `mfa_setup` and `mfa_verify` now exist and are exercised by the MFA tests.
 - Slice 5 manual check (`runserver`, unapproved and forced-password-change redirects) has not been done (tests only).
-- Nothing links to the admin-only role decorator yet; `admin_required` is tested with `RequestFactory` only.
 - Manual check of `createadmin` against the real `db.sqlite3` has not been done (tests only).
 - `createadmin` prints the temporary password to stdout; it's never logged, but it will appear in terminal scrollback.
 - Manual check from Slice 3's "Done" line (`runserver`, `/` redirects to login) has not been done.
@@ -28,6 +27,8 @@
 - `AuditEvent` immutability is enforced in `save()`/`delete()` only. Queryset `.update()` and `.delete()` bypass it, and the ordering test uses `.update()` on purpose.
 - Slice 7: the "last admin" deactivate message is unreachable from the UI (only an admin can act, so the last admin is always the actor and hits the self-check first). The rule is covered via `services.is_last_admin`.
 - Slice 7 manual check (`runserver`, create an account, sign in with the temp password) has not been done (tests only).
+- Slice 7: temp passwords appear once on the create/reset page (`Cache-Control: no-store`) and are never logged; they stay in browser history/scrollback of that page view.
+- Slice 7: `user_reset` returns 403 for non-local users; Slice 8 Microsoft accounts rely on that.
 ## Decisions made
 - Django 5.2 LTS + openpyxl, pyotp, segno, msal (approved). PLAN.md D1–D18 accepted.
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
