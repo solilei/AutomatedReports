@@ -65,17 +65,17 @@ Test files created by a slice are part of that slice. After the slice is done, d
 | # | Decision |
 |---|---|
 | D1 | Max roster upload size: **5 MB** (`ROSTER_MAX_UPLOAD_BYTES=5242880`). |
-| D2 | Group numbers are stripped and upper-cased and must match `^[A-Z0-9._-]{1,20}$`. |
+| D2 | Group numbers are stripped and upper-cased and must match `^[A-Z0-9._-]{1,20}$`. (Superseded by R4.) |
 | D3 | Name matching (no ID column) is exact after collapsing whitespace. |
 | D4 | A cadet who reappears in a re-upload after being inactive is **reactivated**. In ID mode, a changed name for a known ID is **renamed**. Both are shown in the preview. |
 | D5 | A group's identity mode (ID or name) is fixed by its first upload. A later upload of that group with the other mode is rejected. |
 | D6 | Uploads that include a locked, archived or deleted group number are rejected. |
 | D7 | Averages are rounded half up to a **whole number** (no decimal places), so 2.5 → 3. The band and flag use that rounded value. Total = sum of the six whole-number averages (6–30). |
-| D8 | A score set has one row per active cadet at save time. Cadets added later have no row in it and aren't counted for that set. A cadet with no rows in any set shows "no data". |
+| D8 | A score set has one row per active cadet at save time. Cadets added later have no row in it and aren't counted for that set. A cadet with no rows in any set shows "no data". (Superseded by R8: a missing row counts as 3s.) |
 | D9 | "Added since your last save" = the instructor has a saved set for this group+subject and the cadet has no row in it. |
 | D10 | MFA defaults **on** (`MFA_REQUIRED=1`). Turn it off for PoC testing with `MFA_REQUIRED=0`. When `DEBUG` is off, MFA is forced on. |
 | D11 | Admins can **reset** a local account (new temporary password, MFA cleared), because there is no email. |
-| D12 | Admins can **unarchive** a group (back to active). |
+| D12 | Admins can **unarchive** a group (back to active). (Superseded by R9: back to its status before archiving.) |
 | D13 | Subjects can be added, renamed, deactivated and reactivated, but never deleted. Inactive subjects are hidden from the dropdown. |
 | D14 | Admins can't deactivate their own account. |
 | D15 | Locked and archived groups block scoring, roster re-upload and cadet deletion. Export and results stay available. |
@@ -88,6 +88,28 @@ Test files created by a slice are part of that slice. After the slice is done, d
 ## Change after Slice 21: one course per file (user decision)
 
 The course number is gone. A group's number (`C216`) is the course. Each roster file holds one course only, and the admin types the group number at upload (stored uppercased in `RosterUpload.group_number`). There is no group column: `ColumnForm` has `name_col` and `id_col` only, `parse_rows(rows, group_number, name_col, id_col=None)` puts every row in that one group, and `Group.course_number`, `RosterUpload.course_number`, `RosterUpload.group_col`, `RosterColumnPreference.group_header` and the `GroupChange.course_old/course_new` fields were removed (migration `roster/0002`). `GROUP_COURSE_CHANGED` is no longer logged (the constant stays so the audit choices don't change). The slice texts below that mention a course number, a Course Group column or several groups per file are superseded by this. The export header "Course" (Slices 23 and 24) uses the group number. Samples are `samples/sample_roster_C216.xlsx`, `_C217`, `_C218`.
+
+---
+
+## Changes after Slice 26: code-review fixes (2026-10-26)
+
+A review against REQUIREMENTS.md found the bugs below. Each was fixed test-first (failing test, then code). Commits `c5d0837` (export fix, docs) and `2e01453` (everything else). These supersede D2, D8 and D12 and the slice texts they contradict.
+
+| # | Change | Where |
+|---|---|---|
+| R1 | Export writes cadet names, subject names, instructor names and comment lines as text cells, never formulas (openpyxl stores a leading `=` as a formula). | `scoring/export.py` `_text()` |
+| R3 | The preview form carries `preview_key` (SHA-256 of the shown changes). If the changes differ at confirm time, nothing is applied and the new preview is shown with a warning. A POST without the key skips the check. | `roster/services.py` `preview_key`, `upload_preview` |
+| R4 | Group numbers must also contain at least one letter or digit (supersedes D2; `.` and `..` broke URLs). | `GROUP_NUMBER_RE` |
+| R5 | Names over 200 characters and IDs over 50 are rejected per row (PostgreSQL would raise otherwise). | `parse_rows` |
+| R6 | Digit-only cadet IDs drop leading zeros (`00123` = `123`, `000` = `0`), in `parse_rows` and when matching stored cadets; a re-upload rewrites the stored ID in normalised form. | `normalise_id` |
+| R7 | A deactivated subject can't start a new score set (`score_go`, `score_grid` redirect to the group page); existing sets stay open. | `scoring/views.py` |
+| R8 | A saved score set with no row for a cadet counts as six 3s for that cadet (supersedes D8). A cadet with no rows in any set still shows "no data". The set count comes from the rows query, so results stay at 2 queries. | `group_results` |
+| R9 | Archiving stores `Group.status_before_archive`; unarchive restores it (locked or active) (supersedes D12). | `roster/lifecycle.py`, migration `roster/0003` |
+| R10 | 5 failed sign-ins in a row (wrong password or wrong authenticator code) lock the account for 15 minutes (`User.failed_sign_ins`, `User.sign_in_locked_until` as `time.time()` seconds). Success clears the count; admin Reset clears the lock. Lock logged as `account.locked`. | `accounts/services.py`, migration `accounts/0002` |
+| R11 | Admin can discard an unapplied upload (POST `roster/upload/<pk>/discard/`): status `discarded`, file and parsed rows cleared, logged as `roster.discarded`. Discarded uploads can't be reopened. | `upload_discard`, migrations `roster/0003`, `audit/0002` |
+| R12 | A subject can't be renamed while a locked or archived group has score sets for it. | `SubjectForm.clean_name` |
+
+Not fixed: two admins creating the same new group at the same moment gives the second an error page (`IntegrityError`); `LOGIN_MODE=microsoft` has no way for the CLI-created local admin to sign in; `DJANGO_DEBUG` still defaults to on. See `docs/HOSTING.md` section 4.
 
 ---
 
@@ -1292,4 +1314,4 @@ def group_results(group) -> list[CadetResult]
 | 10 Lifecycle | 7, 18, 19, 21 |
 | 11 Audit log | 2, and every slice that changes data; viewer in 25 |
 
-Not covered until hosting is decided: `SECURE_PROXY_SSL_HEADER`, PostgreSQL driver (`psycopg`), production web server.
+Not covered until hosting is decided: `SECURE_PROXY_SSL_HEADER`, PostgreSQL driver (`psycopg`), production web server, static files. The full list is in `docs/HOSTING.md` section 4.
