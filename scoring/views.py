@@ -1,7 +1,11 @@
+from io import BytesIO
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import admin_required
@@ -12,6 +16,7 @@ from roster.models import Group
 
 from .access import get_visible_group
 from . import services
+from .export import build_group_report
 from .attributes import ATTRIBUTE_FIELDS, ATTRIBUTES, BLANK_COUNTS_AS, SCORE_CHOICES
 from .forms import SubjectForm
 from .models import ScoreSet, Subject
@@ -222,3 +227,25 @@ def results(request, number):
             "key": [(value, BAND_HEX[value], label) for value, label in SCORE_CHOICES],
         },
     )
+
+
+@admin_required
+def export(request, number):
+    group = get_object_or_404(Group, number=number)
+    export_date = timezone.localdate()
+    buffer = BytesIO()
+    build_group_report(group, export_date).save(buffer)
+    filename = f"Cadet_Soft_Skills_{group.number}_{export_date:%Y-%m-%d}.xlsx"
+    log(
+        request.user,
+        actions.EXPORT_DOWNLOADED,
+        f"{request.user.username} exported the report for group {group.number}",
+        group_number=group.number,
+        details={"filename": filename},
+    )
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

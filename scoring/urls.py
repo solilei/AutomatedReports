@@ -13,6 +13,7 @@ urlpatterns = [
     path("groups/<str:number>/score-sets/", views.group_score_sets, name="group_score_sets"),
     path("score-sets/<int:pk>/", views.score_set_detail, name="score_set_detail"),
     path("groups/<str:number>/results/", views.results, name="results"),
+    path("groups/<str:number>/export/", views.export, name="export"),
     path("groups/<str:number>/score/", views.score_go, name="score_go"),
     path("groups/<str:number>/score/<int:subject_id>/", views.score_grid, name="score_grid"),
 ]

@@ -1179,7 +1179,7 @@ def group_results(group) -> list[CadetResult]
 
 ---
 
-### [ ] 24. Export download
+### [x] 24. Export download
 
 **Files**
 - Change `scoring/views.py`, `scoring/urls.py`, `roster/templates/roster/group_detail.html` (admin button "Export report").

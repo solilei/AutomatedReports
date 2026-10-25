@@ -64,7 +64,7 @@ class ExportBuilderTests(TestCase):
         self.assertEqual(ws["A1"].alignment.vertical, "center")
         self.assertEqual(ws["D1"].value, "Cadet Soft Skills Report")
         self.assertTrue(ws["D1"].font.bold)
-        self.assertEqual(ws["D1"].font.size, 14)
+        self.assertEqual(ws["D1"].font.size, 18)
         self.assertEqual(ws["C2"].value, "Ground School Department")
         self.assertTrue(ws["C2"].font.bold)
         self.assertLessEqual({"A1:B3", "C2:I2"}, self.merges(ws))
@@ -202,7 +202,7 @@ class ExportBuilderTests(TestCase):
         self.assertEqual(ws["A16"].value, 2)
         self.assertEqual(ws["B16"].value, "Bob Ray")
         for col in ATTRIBUTE_COLUMNS:
-            self.assertIsNone(ws[f"{col}16"].value)
+            self.assertEqual(ws[f"{col}16"].value, "n/a")
         self.assertEqual(ws["O16"].value, "no data")
         self.assertEqual(ws["O15"].value, "=SUM(C15:N15)")
 
@@ -227,7 +227,7 @@ class ExportBuilderTests(TestCase):
             for col in "ABCDEFGHIJKLMNO":
                 border = ws[f"{col}{row}"].border
                 for side in ("left", "right", "top", "bottom"):
-                    self.assertEqual(getattr(border, side).style, "thin", f"{col}{row} {side}")
+                    self.assertEqual(getattr(border, side).style, "medium", f"{col}{row} {side}")
 
     def comment(self, set_, cadet, text):
         CadetScore.objects.filter(score_set=set_, cadet=cadet).update(comment=text)
@@ -301,3 +301,45 @@ class ExportBuilderTests(TestCase):
         self.assertEqual(reloaded.sheetnames, ["C216"])
         self.assertEqual(reloaded.active["B15"].value, "Alice Ng")
         self.assertEqual(reloaded.active["O15"].value, "=SUM(C15:N15)")
+
+    def test_title_rows_are_18pt_calibri(self):
+        ws = self.sheet()
+        for ref in ("A1", "D1", "C2"):
+            self.assertEqual(ws[ref].font.size, 18, ref)
+            self.assertEqual(ws[ref].font.name, "Calibri", ref)
+
+    def test_all_other_text_is_calibri_12(self):
+        make_score_set(self.bea, self.drill, self.group, {self.alice: scores(4)})
+        ws = self.sheet()
+        checked = 0
+        for row in ws.iter_rows(min_row=4):
+            for cell in row:
+                if cell.value is None:
+                    continue
+                checked += 1
+                self.assertEqual(cell.font.name, "Calibri", cell.coordinate)
+                self.assertEqual(cell.font.size, 12, cell.coordinate)
+        self.assertGreater(checked, 0)
+
+    def test_tables_bold_centered_with_medium_black_borders(self):
+        make_score_set(self.bea, self.drill, self.group, {self.alice: scores(4)})
+        ws = self.sheet()
+        cells = [f"{col}{row}" for row in range(14, 18) for col in "ABCDEFGHIJKLMNO"]
+        cells += [f"{col}{row}" for row in range(9, 13) for col in "BCDEFGHIJKLMNO"]
+        for ref in cells:
+            cell = ws[ref]
+            self.assertTrue(cell.font.bold, ref)
+            self.assertEqual(cell.alignment.horizontal, "center", ref)
+            self.assertEqual(cell.alignment.vertical, "center", ref)
+            for side in ("left", "right", "top", "bottom"):
+                border = getattr(cell.border, side)
+                self.assertEqual(border.style, "medium", f"{ref} {side}")
+                self.assertEqual(border.color.rgb[-6:], "000000", f"{ref} {side}")
+
+    def test_no_data_row_merges_na_per_attribute(self):
+        make_score_set(self.bea, self.drill, self.group, {self.alice: scores(4)})
+        ws = self.sheet()
+        merges = self.merges(ws)
+        for first, last in zip("CEGIKM", "DFHJLN"):
+            self.assertIn(f"{first}16:{last}16", merges)
+            self.assertEqual(ws[f"{first}16"].value, "n/a")

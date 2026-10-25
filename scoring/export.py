@@ -1,3 +1,4 @@
+from copy import copy
 from datetime import date
 
 from openpyxl import Workbook
@@ -30,8 +31,9 @@ KEY_BANDS = [
 ATTRIBUTE_PAIRS = [("C", "D"), ("E", "F"), ("G", "H"), ("I", "J"), ("K", "L"), ("M", "N")]
 ALL_COLUMNS = "ABCDEFGHIJKLMNO"
 FOOTER_TEXT = "For Additional comments specific to an individual cadet refer to next page."
-THIN = Side(style="thin")
-BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+MEDIUM = Side(style="medium", color="000000")
+BORDER = Border(left=MEDIUM, right=MEDIUM, top=MEDIUM, bottom=MEDIUM)
+BOLD = Font(bold=True)
 CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
 
@@ -110,6 +112,9 @@ def build_group_report(group, export_date: date) -> Workbook:
         ws[f"B{row}"] = result.cadet.name
         if result.averages is None:
             ws[f"O{row}"] = "no data"
+            for first, last in ATTRIBUTE_PAIRS:
+                ws.merge_cells(f"{first}{row}:{last}{row}")
+                ws[f"{first}{row}"] = "n/a"
             continue
         for (field, _, _), (first, last) in zip(ATTRIBUTES, ATTRIBUTE_PAIRS):
             average = result.averages[field]
@@ -124,6 +129,13 @@ def build_group_report(group, export_date: date) -> Workbook:
     for row in range(14, last_row + 1):
         for col in ALL_COLUMNS:
             ws[f"{col}{row}"].border = BORDER
+            ws[f"{col}{row}"].font = BOLD
+            ws[f"{col}{row}"].alignment = CENTER
+    for row in range(9, 13):
+        for col in ALL_COLUMNS[1:]:
+            ws[f"{col}{row}"].border = BORDER
+            ws[f"{col}{row}"].font = BOLD
+            ws[f"{col}{row}"].alignment = CENTER
 
     footer = 15 + len(results)
     ws.merge_cells(f"A{footer}:O{footer}")
@@ -138,6 +150,13 @@ def build_group_report(group, export_date: date) -> Workbook:
         ws.merge_cells(f"A{row}:O{row}")
         ws[f"A{row}"] = line
         ws[f"A{row}"].alignment = Alignment(wrap_text=True, vertical="top")
+
+    for row in ws.iter_rows():
+        for cell in row:
+            font = copy(cell.font)
+            font.name = "Calibri"
+            font.sz = 18 if cell.row <= 3 else 12
+            cell.font = font
 
     ws.page_setup.orientation = "landscape"
     ws.page_setup.paperSize = 9

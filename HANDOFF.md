@@ -25,13 +25,14 @@
 - Change after Slice 21, at the user's request, committed and pushed at `4f04fff`: the course number is removed; the group number (`C216`) is the course, typed by the admin at upload. Each roster file holds one course, with no group column. See PLAN.md "Change after Slice 21". Migration `roster/0002` applied to `db.sqlite3`. Samples split into `samples/sample_roster_C216/C217/C218.xlsx` (the multi-course `sample_roster.xlsx` was removed with `git rm`). Roster tests updated to match.
 - Also at the user's request, committed and pushed at `fe1855a`: nav spacing, bigger centred sign-in page with a Show/Hide password button, score dropdowns show 1–5 only (legend above the grid), and a first save fills blank cells with 3 (later saves keep blanks and the warning). Four `test_grid_save.py` tests were rewritten and five added for this. 254 tests pass; `check` and `makemigrations --check` are clean.
 - Slice 22 (Results page: `results` view in `scoring/views.py`, `groups/<number>/results/` URL, `scoring/results.html`, "Results" link in `group_detail.html`) committed and pushed at `9b09c39`. 11 new tests; 265 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
-- Slice 23 (Export workbook builder: `scoring/export.py` `build_group_report(group, export_date)`) written and tested, not yet committed. 16 new tests in `scoring/tests/test_export_builder.py`; 281 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md. A sample file from fake data was generated for the user to compare by hand (see Open problems).
+- Slice 23 (Export workbook builder: `scoring/export.py` `build_group_report(group, export_date)`) committed at `1de2916`. 16 tests in `scoring/tests/test_export_builder.py`. Ticked in PLAN.md.
+- At the user's request after Slice 23, report formatting changed in `scoring/export.py`: score table and grading-system table (`B9:O12`, `A14:O…`) are bold, centred and have medium black borders (thick was tried, then made thinner); all text is Calibri 12 pt except rows 1–3 (`A1`, `D1`, `C2`), which are Calibri 18 pt bold; a cadet with no scores shows a merged "n/a" per attribute pair (Total column still says `no data`). Three Slice 23 tests were edited at the user's request (`test_header_texts_and_course`, `test_borders_on_table`, `test_no_data_row`) and four added (`test_title_rows_are_18pt_calibri`, `test_all_other_text_is_calibri_12`, `test_tables_bold_centered_with_medium_black_borders`, `test_no_data_row_merges_na_per_attribute`); 20 tests in that file.
+- Slice 24 (Export download: `export` view in `scoring/views.py`, `groups/<number>/export/` URL, admin "Export report" link in `group_detail.html`) committed with the formatting changes above. 4 new tests in `scoring/tests/test_export_view.py`; 289 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 24 (Export download) in PLAN.md, only when the user says to start. Don't write code until then.
-- Slice 23 is uncommitted; commit only if the user asks.
+- Slice 25 (Audit log viewer) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
-- Slice 23: the layout has not been compared with the template in Excel or LibreOffice (tests inspect the workbook with openpyxl only). The user was given a sample file to open; their findings are pending. PLAN.md's manual check for the slice is still to do.
+- Slice 23/24: the layout, including the 18 pt title rows (row heights not set, merged `A1:B3`/`C2:I2` may clip), has not been compared with the template in Excel or LibreOffice (tests inspect the workbook with openpyxl only). The user was given a sample file to open; their findings are pending. PLAN.md's manual check for the slice is still to do.
 - Slice 23: `test_export_builder.py` has 2 tests beyond PLAN.md's 14 (`test_borders_on_table`, `test_comments_skip_inactive_cadets_and_blank_comments`).
 - Slice 23: the Total column is an `=SUM(...)` formula with no cached value, so a viewer that doesn't recalculate shows it blank. No-data rows write the text `no data` in column O.
 - Slice 23: comments are sorted case-insensitively by instructor name then subject name. Comment lines are wrapped and top-aligned, but row height isn't set, so Excel may not auto-grow merged rows for long comments.
@@ -44,7 +45,8 @@
 - Group numbers are typed by the admin at each upload and must match what instructors expect (`C216`); a typo creates a new group. The group is only checked against locked, archived and deleted groups.
 - A roster file with several courses is no longer detected: every row goes into the one group typed at upload. The old multi-course `samples/sample_roster.xlsx` was deleted for that reason.
 - The audit `AuditEvent.action` choices still include `group.course_changed`; nothing logs it.
-- The export slices (23 and 24) must use the group number where PLAN.md says course number (the export header "Course").
+- The export slices (23 and 24) use the group number where PLAN.md says course number (the export header "Course").
+- Slice 24: the `export` view and the "Export report" link have not been checked in a browser or by opening the download in Excel/LibreOffice (tests only). The audit summary "<user> exported the report for group <n>" is my wording. The `export` view uses `get_object_or_404` (no `get_visible_group`), so admins can export archived groups.
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
 - Slice 8: the Microsoft button only appears when `LOGIN_MODE` is `microsoft` or `both`; the default `local` shows no button and the routes 404.
@@ -145,4 +147,4 @@
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One group per upload, typed by the admin each time (box starts empty); the group number is the course.
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1 to 22 tests are frozen (except as changed at the user's request, see above): don't modify test files unless the user asks.
+- Slice 1 to 24 tests are frozen (except as changed at the user's request, see above): don't modify test files unless the user asks.
