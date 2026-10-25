@@ -9,9 +9,10 @@
 - Slice 6 (authenticator-app MFA: `accounts/mfa.py`, `mfa_setup`, `mfa_verify`, login branch) committed and pushed at `07a9dfd`. 11 new tests; 55 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 7 (account management: `accounts/services.py`, `user_list`/`user_create`/row actions/`user_reset`, Accounts nav link) committed and pushed at `b98efff`. 16 new tests; 71 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 8 (Microsoft Entra ID sign-in: `accounts/microsoft.py`, `microsoft_login`/`microsoft_callback`, `ENTRA_*` settings, error page) committed and pushed at `5ec5e3f`. 15 new tests; 86 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 9 (Subjects: `scoring.Subject` model, `SubjectForm`, `subject_list`/`subject_create`/`subject_edit`/`subject_toggle`, Subjects nav link) committed and pushed at `8d25cb1`. 10 new tests; 96 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 9 (Subjects) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 10 (Roster models and shared test helpers) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
@@ -33,9 +34,13 @@
 - Slice 7: `user_reset` returns 403 for non-local users; Microsoft accounts rely on that.
 - Slice 8: a Microsoft sign-in whose username matches an existing local account gets a 409; there is no account linking. A callback replay fails because the `entra_flow` session value is popped on first use.
 - Slice 8: `test_microsoft` settings tests reload `config.settings` (module only, not `django.conf.settings`) and reload it again afterwards.
+- Slice 9: the Subjects pages (add, rename, deactivate) have not been checked in a browser (tests only).
+- Slice 9: `test_subjects.py` has 3 tests beyond PLAN.md's 7 (rename to same name in a different case, nav link shown to admins, nav link hidden from instructors).
+- Slice 9: renaming a subject to its current name unchanged logs nothing and shows no message.
+- Slice 9: nothing uses `Subject.is_active` yet; the dropdown that hides inactive subjects comes in a later scoring slice.
 ## Decisions made
 - Django 5.2 LTS + openpyxl, pyotp, segno, msal (approved). PLAN.md D1–D18 accepted.
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One course number per upload, typed by the admin each time (box starts empty).
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1, 2, 3, 4, 5, 6, 7 and 8 tests are frozen: don't modify test files unless the user asks.
+- Slice 1, 2, 3, 4, 5, 6, 7, 8 and 9 tests are frozen: don't modify test files unless the user asks.
