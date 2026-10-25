@@ -373,7 +373,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 7. Account management (admin)
+### [x] 7. Account management (admin)
 
 **Files**
 - Create `accounts/services.py`.

@@ -5,16 +5,18 @@ from django.contrib import messages
 from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_not_required
 from django.contrib.auth.forms import AuthenticationForm
+from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseBadRequest
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from audit import actions
 from audit.service import log
 
-from . import mfa
-from .forms import PasswordSetForm
+from . import mfa, services
+from .decorators import admin_required
+from .forms import PasswordSetForm, UserCreateForm
 from .models import User
 
 MFA_SESSION_KEYS = ("mfa_user_id", "mfa_started", "mfa_attempts", "mfa_next", "mfa_new_secret")
@@ -162,3 +164,132 @@ def mfa_verify(request):
             return redirect("accounts:login")
         error = "Code not accepted, try again."
     return render(request, "accounts/mfa_verify.html", {"error": error})
+
+
+def _no_store(response):
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@admin_required
+def user_list(request):
+    users = User.objects.order_by("is_approved", "username")
+    return render(request, "accounts/user_list.html", {"users": users})
+
+
+@admin_required
+def user_create(request):
+    form = UserCreateForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        username = form.cleaned_data["username"]
+        role = form.cleaned_data["role"]
+        password = services.generate_temp_password()
+        user = User(
+            username=username,
+            full_name=form.cleaned_data["full_name"],
+            role=role,
+            auth_source=User.Source.LOCAL,
+            is_approved=True,
+            must_change_password=True,
+        )
+        user.set_password(password)
+        user.save()
+        log(
+            request.user,
+            actions.ACCOUNT_CREATED,
+            f"Account '{username}' created as {role}",
+            details={"username": username, "role": role},
+        )
+        return _no_store(render(request, "accounts/user_created.html", {"account": user, "password": password}))
+    return render(request, "accounts/user_create.html", {"form": form})
+
+
+def _row_action(request, pk, action, summary, apply):
+    """Runs a POST-only row action; `apply` returns an error message or None after changing the target."""
+    target = get_object_or_404(User, pk=pk)
+    error = apply(target)
+    if error:
+        messages.error(request, error)
+    else:
+        log(request.user, action, summary.format(username=target.username), details={"username": target.username})
+        messages.success(request, summary.format(username=target.username) + ".")
+    return redirect("accounts:user_list")
+
+
+@admin_required
+@require_POST
+def user_approve(request, pk):
+    def apply(target):
+        target.is_approved = True
+        target.save(update_fields=["is_approved"])
+
+    return _row_action(request, pk, actions.ACCOUNT_APPROVED, "Approved {username}", apply)
+
+
+@admin_required
+@require_POST
+def user_promote(request, pk):
+    def apply(target):
+        if not target.is_approved:
+            return "Approve the account first."
+        target.role = User.Role.ADMIN
+        target.save(update_fields=["role"])
+
+    return _row_action(request, pk, actions.ACCOUNT_PROMOTED, "Promoted {username} to admin", apply)
+
+
+@admin_required
+@require_POST
+def user_demote(request, pk):
+    def apply(target):
+        if services.is_last_admin(target):
+            return "Cannot demote the last remaining admin."
+        target.role = User.Role.INSTRUCTOR
+        target.save(update_fields=["role"])
+
+    return _row_action(request, pk, actions.ACCOUNT_DEMOTED, "Demoted {username} to instructor", apply)
+
+
+@admin_required
+@require_POST
+def user_deactivate(request, pk):
+    def apply(target):
+        if target.pk == request.user.pk:
+            return "You cannot deactivate your own account."
+        if services.is_last_admin(target):
+            return "Cannot deactivate the last remaining admin."
+        target.is_active = False
+        target.save(update_fields=["is_active"])
+
+    return _row_action(request, pk, actions.ACCOUNT_DEACTIVATED, "Deactivated {username}", apply)
+
+
+@admin_required
+@require_POST
+def user_reactivate(request, pk):
+    def apply(target):
+        target.is_active = True
+        target.save(update_fields=["is_active"])
+
+    return _row_action(request, pk, actions.ACCOUNT_REACTIVATED, "Reactivated {username}", apply)
+
+
+@admin_required
+@require_POST
+def user_reset(request, pk):
+    target = get_object_or_404(User, pk=pk)
+    if target.auth_source != User.Source.LOCAL:
+        raise PermissionDenied
+    password = services.generate_temp_password()
+    target.set_password(password)
+    target.must_change_password = True
+    target.totp_secret = ""
+    target.totp_confirmed = False
+    target.save(update_fields=["password", "must_change_password", "totp_secret", "totp_confirmed"])
+    log(
+        request.user,
+        actions.ACCOUNT_RESET,
+        f"Reset account '{target.username}'",
+        details={"username": target.username},
+    )
+    return _no_store(render(request, "accounts/user_reset_done.html", {"account": target, "password": password}))
