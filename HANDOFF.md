@@ -11,9 +11,10 @@
 - Slice 8 (Microsoft Entra ID sign-in: `accounts/microsoft.py`, `microsoft_login`/`microsoft_callback`, `ENTRA_*` settings, error page) committed and pushed at `5ec5e3f`. 15 new tests; 86 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 9 (Subjects: `scoring.Subject` model, `SubjectForm`, `subject_list`/`subject_create`/`subject_edit`/`subject_toggle`, Subjects nav link) committed and pushed at `8d25cb1`. 10 new tests; 96 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 10 (Roster models and shared test helpers: `roster.models` Group, Cadet, DeletedGroupNumber, RosterColumnPreference, RosterUpload; `roster/tests/helpers.py`) committed and pushed at `2c00726`. 9 new tests; 105 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 11 (Roster upload step 1: `roster/forms.py` UploadForm, `roster/services.py` `cell_text`/`read_sheet`/`RosterError`, `roster:upload` view and template, `ROSTER_MAX_UPLOAD_BYTES`, Upload roster nav link) committed and pushed at `912fa33`. 16 new tests; 121 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 11 (Roster upload step 1: file and course number) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 12 (Roster upload step 2: column choice, parsing, validation, remembered columns) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
@@ -42,9 +43,13 @@
 - Slice 10: `test_models.py` has 1 test beyond PLAN.md's 8 (`test_str_is_number`).
 - Slice 10: the models have no views or admin yet; nothing uses `Group`, `Cadet` or `RosterUpload` until slices 11+. `RosterUpload.file_content` stores the whole upload (up to 5 MB) in the database; nothing deletes old uploads yet.
 - Slice 10: `roster/tests/helpers.py` (`make_xlsx`, `make_group`, `SAMPLE_ROSTER`) is shared by later slices; `SAMPLE_ROSTER` points at `samples/sample_roster.xlsx`, whose columns haven't been checked against slice 12's parsing.
+- Slice 11: `test_upload_file.py` has 5 tests beyond PLAN.md's 11 (nav link admin-only, uppercase `.XLSX` accepted, "5 MB" message from the setting, `cell_text` cases, `read_sheet` raises `RosterError`). The pad/truncate test uses rows no wider than the header, because openpyxl read-only mode makes every row as wide as the widest row, so truncation never happens in `read_sheet`.
+- Slice 11: a header row with trailing empty cells keeps them as `""` headers; slice 12 labels them "(column X, no header)".
+- Slice 11: with `ROSTER_MAX_UPLOAD_BYTES` under 1 MB the message reads "File is larger than 0 MB." (plan's `size // 1048576`).
+- Slice 11: the redirect to `/roster/upload/<id>/columns/` 404s until slice 12. The upload page has not been checked in a browser (tests only).
 ## Decisions made
 - Django 5.2 LTS + openpyxl, pyotp, segno, msal (approved). PLAN.md D1–D18 accepted.
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One course number per upload, typed by the admin each time (box starts empty).
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1, 2, 3, 4, 5, 6, 7, 8, 9 and 10 tests are frozen: don't modify test files unless the user asks.
+- Slice 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 and 11 tests are frozen: don't modify test files unless the user asks.

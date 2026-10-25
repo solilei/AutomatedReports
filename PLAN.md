@@ -592,7 +592,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 11. Roster upload step 1: file and course number
+### [x] 11. Roster upload step 1: file and course number
 
 **Files**
 - Create `roster/forms.py`, `roster/services.py` (reading functions only), `roster/urls.py`.
