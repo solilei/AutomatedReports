@@ -22,12 +22,19 @@
 - Slice 19 (Cadet management: `cadet_list`/`cadet_delete` in `roster/views.py`, URLs, `cadet_list.html`, `cadet_delete_confirm.html`, "Manage cadets" link in `group_detail.html`) committed and pushed at `95935ed`. 5 new tests; 228 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 20 ("My score sets" and admin score-set views: `my_score_sets`/`group_score_sets`/`score_set_detail` in `scoring/views.py`, URLs, three templates, "My score sets" nav link, admin "All score sets" link in `group_detail.html`) committed and pushed at `f0a140e`. 5 new tests; 233 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 21 (Results calculation: `scoring/results.py` `round_average`/`CadetResult`/`group_results`, `BAND_HEX`, `FLAG_BELOW`) committed and pushed at `8661783`. 15 new tests; 248 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
-- Change after Slice 21, at the user's request (not committed): the course number is removed; the group number (`C216`) is the course, typed by the admin at upload. Each roster file holds one course, with no group column. See PLAN.md "Change after Slice 21". Migration `roster/0002` applied to `db.sqlite3`. Samples split into `samples/sample_roster_C216/C217/C218.xlsx` (the multi-course `sample_roster.xlsx` was removed with `git rm`). Roster tests updated to match.
-- Also at the user's request (not committed): nav spacing, bigger centred sign-in page with a Show/Hide password button, score dropdowns show 1–5 only (legend above the grid), and a first save fills blank cells with 3 (later saves keep blanks and the warning). Four `test_grid_save.py` tests were rewritten and five added for this. 254 tests pass; `check` and `makemigrations --check` are clean.
+- Change after Slice 21, at the user's request, committed and pushed at `4f04fff`: the course number is removed; the group number (`C216`) is the course, typed by the admin at upload. Each roster file holds one course, with no group column. See PLAN.md "Change after Slice 21". Migration `roster/0002` applied to `db.sqlite3`. Samples split into `samples/sample_roster_C216/C217/C218.xlsx` (the multi-course `sample_roster.xlsx` was removed with `git rm`). Roster tests updated to match.
+- Also at the user's request, committed and pushed at `fe1855a`: nav spacing, bigger centred sign-in page with a Show/Hide password button, score dropdowns show 1–5 only (legend above the grid), and a first save fills blank cells with 3 (later saves keep blanks and the warning). Four `test_grid_save.py` tests were rewritten and five added for this. 254 tests pass; `check` and `makemigrations --check` are clean.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
 - Slice 22 (Results page) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
+- After Slice 21 (`4f04fff`, `fe1855a`): none of the new behaviour has been checked in a browser (tests only): group-number box on the upload page, the columns page without a group column, the Show/Hide password button, the centred sign-in page, nav spacing, 1–5 dropdowns with the legend, and the first-save fill with 3.
+- First save fills blanks with 3 only when the instructor has no score set yet for that group and subject. Later saves keep blanks blank and still show the blank warning with confirm. Say if blanks should always fill with 3.
+- A first save with every cell blank is still refused ("Enter at least one score before saving.").
+- Group numbers are typed by the admin at each upload and must match what instructors expect (`C216`); a typo creates a new group. The group is only checked against locked, archived and deleted groups.
+- A roster file with several courses is no longer detected: every row goes into the one group typed at upload. The old multi-course `samples/sample_roster.xlsx` was deleted for that reason.
+- The audit `AuditEvent.action` choices still include `group.course_changed`; nothing logs it.
+- Slice 22 (Results page) and the export slices (23 and 24) must use the group number where PLAN.md says course number (the export header "Course").
 - Real roster: is there a cadet ID column? Retention period, hosting, Postgres host, HTTPS, Entra app registration, data-protection sign-off.
 - Slice 8: the real Microsoft round trip (Entra app registration, redirect URI, sign-in, first-sign-in pending account, admin approval) has not been tried; tests mock msal. Needs the Entra app registration listed above.
 - Slice 8: the Microsoft button only appears when `LOGIN_MODE` is `microsoft` or `both`; the default `local` shows no button and the routes 404.
@@ -54,24 +61,24 @@
 - Slice 9: nothing uses `Subject.is_active` yet; the dropdown that hides inactive subjects comes in a later scoring slice.
 - Slice 10: `test_models.py` has 1 test beyond PLAN.md's 8 (`test_str_is_number`).
 - Slice 10: the models have no views or admin yet; nothing uses `Group`, `Cadet` or `RosterUpload` until slices 11+. `RosterUpload.file_content` stores the whole upload (up to 5 MB) in the database; nothing deletes old uploads yet.
-- Slice 10: `roster/tests/helpers.py` (`make_xlsx`, `make_group`, `SAMPLE_ROSTER`) is shared by later slices; `SAMPLE_ROSTER` points at `samples/sample_roster.xlsx`.
+- Slice 10: `roster/tests/helpers.py` (`make_xlsx`, `make_group`, `SAMPLE_ROSTER`) is shared by later slices; `SAMPLE_ROSTER` now points at `samples/sample_roster_C216.xlsx` (was `sample_roster.xlsx`, split after Slice 21).
 - Slice 11: `test_upload_file.py` has 5 tests beyond PLAN.md's 11 (nav link admin-only, uppercase `.XLSX` accepted, "5 MB" message from the setting, `cell_text` cases, `read_sheet` raises `RosterError`). The pad/truncate test uses rows no wider than the header, because openpyxl read-only mode makes every row as wide as the widest row, so truncation never happens in `read_sheet`.
 - Slice 11: a header row with trailing empty cells keeps them as `""` headers; slice 12 labels them "(column X, no header)".
 - Slice 11: with `ROSTER_MAX_UPLOAD_BYTES` under 1 MB the message reads "File is larger than 0 MB." (plan's `size // 1048576`).
 - Slice 11: The upload page has not been checked in a browser (tests only).
 - Slice 12: `test_upload_columns.py` has 5 tests beyond PLAN.md's 15 (`test_blank_id_reported_when_id_column_chosen`, `test_no_cadets_error`, `test_success_without_id_clears_id_preference`, `test_instructor_forbidden`, `test_upload_redirects_to_columns_url`, which only checks the URL string, not the view's redirect).
 - Slice 12: the columns page has not been checked in a browser (tests only).
-- Slice 12: `SAMPLE_ROSTER` parses into C216 15, C217 13, C218 16 with Course Group / Full Name / Cadet ID, which settles the earlier open question about its columns.
+- Slice 12: the sample files parse with Full Name / Cadet ID: `sample_roster_C216` 15 cadets, `_C217` 13, `_C218` 16. They still carry a "Course Group" column, which is now ignored.
 - Slice 12: no audit event is logged for column choice or parsing (PLAN.md doesn't ask for one); `ROSTER_APPLIED` is logged on apply (slice 13).
 - Slice 12: `upload_columns` re-reads the sheet from `file_content` on every GET and POST, and doesn't block a `parsed` upload from being re-parsed with different columns.
 - Slice 13: `test_upload_apply.py` has 6 tests beyond PLAN.md's 12 (existing-group preview, `uploaded` status redirects to columns, check errors shown on GET, instructor 403, name-mode group creation, `applied` GET redirect).
-- Slice 13: the preview and apply flow has not been checked in a browser (tests only). PLAN.md's manual check (upload `samples/sample_roster.xlsx`, see 3 groups) is still to do.
+- Slice 13: the preview and apply flow has not been checked in a browser (tests only). PLAN.md's manual check (upload `samples/sample_roster_C217.xlsx` with group number `C217`, see the new group; the "see 3 groups" wording is obsolete) is still to do.
 - Slice 13: `apply_upload(upload, actor, actor_label=None)` does not call `check_groups`; the caller must. Slice 25's `seed_demo` must do so too.
 - Slice 13: the apply step runs `select_for_update` on the upload row, which SQLite ignores, so the double-submit guard is only tested sequentially (`test_confirm_twice_does_not_reapply`), not under real concurrency.
 - Slice 13: in ID mode an existing cadet whose ID matches is kept even if inactive and renamed in the same upload (reactivation wins, the rename is applied silently with no `CADET_RENAMED` event).
 - Slice 13: cadets missing from the file keep their old `position`, so positions in a group can repeat or have gaps after a re-upload.
 - Slice 13: `Confirm and apply` is disabled in the template when errors show; the POST still re-checks server-side.
-- Slice 13: the `GROUP_CREATED` audit details carry `course_number`, which PLAN.md doesn't ask for.
+- Slice 13: `GROUP_CREATED` now carries no details (the course number was removed); `GROUP_COURSE_CHANGED` is never logged but its constant stays so the audit `action` choices need no migration.
 - Slice 14: the models have no views, forms or audit events yet; nothing uses `ScoreSet`/`CadetScore` until slices 15+. `ATTRIBUTES`' third element (export header label) and `BLANK_COUNTS_AS` are unused until slices 21+.
 - Slice 14: the range check is enforced by DB `CheckConstraint`s only; the model validators run in forms/`full_clean()`, not on `objects.create()`.
 - Slice 14: `ScoreSet.instructor` and `.subject` are `PROTECT`, so deleting a user or subject with score sets fails; slices 7/9 never delete either, but any future delete UI must handle `ProtectedError`.
@@ -115,7 +122,7 @@
 - Slice 20: `score_set_detail` numbers rows 1..n in display order (active cadets first, then inactive), not by the grid's numbering, so a row's No. can differ from the one the instructor saw.
 - Slice 21: `test_results.py` has 2 tests beyond PLAN.md's 13 (`test_results_ordered_and_numbered`, `test_other_group_scores_ignored`). Nothing uses `group_results` yet.
 - Slice 21: `group_results` takes cadet ids from the 1st query and filters rows with `cadet__in=cadets` (a list of objects), so Django inlines the ids; fine for roster sizes, but a very large group would hit SQLite's variable limit.
-- Local dev DB: `db.sqlite3` is migrated and holds account `testadmin`, subject `Drill`, and groups C216/C217/C218 (course 216.18) loaded via the services, not the UI, so there are no `ROSTER_UPLOADED` or subject-created events. Start the server with `MFA_REQUIRED=False python manage.py runserver 127.0.0.1:8000` to skip MFA (MFA is on by default).
+- Local dev DB: `db.sqlite3` is migrated and holds account `testadmin`, subject `Drill`, and groups C216/C217/C218 loaded via the services, not the UI, so there are no `ROSTER_UPLOADED` or subject-created events. Start the server with `MFA_REQUIRED=False python manage.py runserver 127.0.0.1:8000` to skip MFA (MFA is on by default).
 - `createadmin` is not atomic with its audit log: if the audit table is missing, the user is created but the command fails and the password is lost.
 ## Decisions made
 - Django 5.2 LTS + openpyxl, pyotp, segno, msal (approved). PLAN.md D1–D18 accepted.
