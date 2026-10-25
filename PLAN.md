@@ -846,7 +846,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 16. Score grid: save (POST), blank warning, audit
+### [x] 16. Score grid: save (POST), blank warning, audit
 
 **Files**
 - Create `scoring/services.py`.

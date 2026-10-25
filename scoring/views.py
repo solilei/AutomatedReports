@@ -1,4 +1,6 @@
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -7,7 +9,8 @@ from audit import actions
 from audit.service import log
 
 from .access import get_visible_group
-from .attributes import ATTRIBUTES, SCORE_CHOICES
+from . import services
+from .attributes import ATTRIBUTES, BLANK_COUNTS_AS, SCORE_CHOICES
 from .forms import SubjectForm
 from .models import ScoreSet, Subject
 
@@ -73,32 +76,33 @@ def score_go(request, number):
     return redirect("scoring:score_grid", number=group.number, subject_id=subject_id)
 
 
-def score_grid(request, number, subject_id):
-    group = get_visible_group(request, number)
-    subject = get_object_or_404(Subject, pk=subject_id)
-    score_set = ScoreSet.objects.filter(
-        instructor=request.user, subject=subject, group=group
-    ).first()
+def _build_rows(group, score_set, submitted=None):
     saved = {row.cadet_id: row for row in score_set.rows.all()} if score_set else {}
     rows = []
     for number_, cadet in enumerate(group.cadets.filter(is_active=True), start=1):
         saved_row = saved.get(cadet.pk)
+        entry = submitted.get(cadet.pk) if submitted else None
+        if entry:
+            values, comment = entry["scores"], entry["raw_comment"]
+        else:
+            values = {f: getattr(saved_row, f) if saved_row else None for f, _l, _h in ATTRIBUTES}
+            comment = saved_row.comment if saved_row else ""
         rows.append(
             {
                 "number": number_,
                 "cadet": cadet,
                 "added": score_set is not None and saved_row is None,
                 "cells": [
-                    {
-                        "field": field,
-                        "name": f"s-{cadet.pk}-{field}",
-                        "value": getattr(saved_row, field) if saved_row else None,
-                    }
+                    {"field": field, "name": f"s-{cadet.pk}-{field}", "value": values[field]}
                     for field, _label, _header in ATTRIBUTES
                 ],
-                "comment": saved_row.comment if saved_row else "",
+                "comment": comment,
             }
         )
+    return rows
+
+
+def _render_grid(request, group, subject, score_set, submitted=None, errors=(), warning="", confirm_blanks=None):
     return render(
         request,
         "scoring/score_grid.html",
@@ -106,9 +110,47 @@ def score_grid(request, number, subject_id):
             "group": group,
             "subject": subject,
             "score_set": score_set,
-            "rows": rows,
+            "rows": _build_rows(group, score_set, submitted),
             "attributes": ATTRIBUTES,
             "score_choices": SCORE_CHOICES,
             "editable": group.is_editable,
+            "errors": errors,
+            "warning": warning,
+            "confirm_blanks": confirm_blanks,
         },
     )
+
+
+def score_grid(request, number, subject_id):
+    group = get_visible_group(request, number)
+    subject = get_object_or_404(Subject, pk=subject_id)
+    score_set = ScoreSet.objects.filter(
+        instructor=request.user, subject=subject, group=group
+    ).first()
+    if request.method != "POST":
+        return _render_grid(request, group, subject, score_set)
+    if not group.is_editable:
+        raise PermissionDenied
+    cadets = list(group.cadets.filter(is_active=True))
+    data, errors = services.parse_submission(request.POST, cadets)
+    for cadet in cadets:
+        data[cadet.pk]["raw_comment"] = request.POST.get(f"c-{cadet.pk}", "")
+    if errors:
+        return _render_grid(request, group, subject, score_set, data, errors)
+    blank_cells, blank_cadets, scored_cells = services.count_blanks(data)
+    if scored_cells == 0:
+        return _render_grid(
+            request, group, subject, score_set, data, ["Enter at least one score before saving."]
+        )
+    if blank_cells and request.POST.get("confirm_blanks") != str(blank_cells):
+        warning = (
+            f"{blank_cells} blank cell(s) across {blank_cadets} cadet(s) will be counted as "
+            f"{BLANK_COUNTS_AS}. Click Save again to confirm."
+        )
+        return _render_grid(
+            request, group, subject, score_set, data, warning=warning, confirm_blanks=blank_cells
+        )
+    with transaction.atomic():
+        services.save_score_set(request.user, subject, group, data)
+    messages.success(request, "Saved.")
+    return redirect("scoring:score_grid", number=group.number, subject_id=subject.pk)
