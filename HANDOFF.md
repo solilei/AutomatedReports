@@ -28,10 +28,14 @@
 - Slice 23 (Export workbook builder: `scoring/export.py` `build_group_report(group, export_date)`) committed at `1de2916`. 16 tests in `scoring/tests/test_export_builder.py`. Ticked in PLAN.md.
 - At the user's request after Slice 23, report formatting changed in `scoring/export.py`: score table and grading-system table (`B9:O12`, `A14:O…`) are bold, centred and have medium black borders (thick was tried, then made thinner); all text is Calibri 12 pt except rows 1–3 (`A1`, `D1`, `C2`), which are Calibri 18 pt bold; a cadet with no scores shows a merged "n/a" per attribute pair (Total column still says `no data`). Three Slice 23 tests were edited at the user's request (`test_header_texts_and_course`, `test_borders_on_table`, `test_no_data_row`) and four added (`test_title_rows_are_18pt_calibri`, `test_all_other_text_is_calibri_12`, `test_tables_bold_centered_with_medium_black_borders`, `test_no_data_row_merges_na_per_attribute`); 20 tests in that file.
 - Slice 24 (Export download: `export` view in `scoring/views.py`, `groups/<number>/export/` URL, admin "Export report" link in `group_detail.html`) committed with the formatting changes above. 4 new tests in `scoring/tests/test_export_view.py`; 289 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 25 (Audit log viewer: `event_list` in `audit/views.py`, `audit/urls.py`, `audit/templates/audit/event_list.html`, `audit/` route in `config/urls.py`, admin "Audit log" nav link) committed and pushed at `8b6c405`. 5 new tests in `audit/tests/test_viewer.py` (no extras beyond PLAN.md's 5); 294 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
-- Slice 25 (Audit log viewer) in PLAN.md, only when the user says to start. Don't write code until then.
+- Slice 26 (Demo data command and README) in PLAN.md, only when the user says to start. Don't write code until then.
 ## Open problems
+- Slice 25: the audit log page has not been checked in a browser (tests only). No CSS for it or its filter form.
+- Slice 25: the group filter is an exact match on the upper-cased text; an `action` value not in the choices is not rejected, it just matches nothing. `event_list` sets `details_json` on each event in the page for the template (not a model field).
+- Slice 25: a bad or out-of-range `page` value falls back to page 1 or the last page (`Paginator.get_page`) instead of a 404.
 - Slice 23/24: the layout, including the 18 pt title rows (row heights not set, merged `A1:B3`/`C2:I2` may clip), has not been compared with the template in Excel or LibreOffice (tests inspect the workbook with openpyxl only). The user was given a sample file to open; their findings are pending. PLAN.md's manual check for the slice is still to do.
 - Slice 23: `test_export_builder.py` has 2 tests beyond PLAN.md's 14 (`test_borders_on_table`, `test_comments_skip_inactive_cadets_and_blank_comments`).
 - Slice 23: the Total column is an `=SUM(...)` formula with no cached value, so a viewer that doesn't recalculate shows it blank. No-data rows write the text `no data` in column O.
@@ -85,7 +89,7 @@
 - Slice 12: `upload_columns` re-reads the sheet from `file_content` on every GET and POST, and doesn't block a `parsed` upload from being re-parsed with different columns.
 - Slice 13: `test_upload_apply.py` has 6 tests beyond PLAN.md's 12 (existing-group preview, `uploaded` status redirects to columns, check errors shown on GET, instructor 403, name-mode group creation, `applied` GET redirect).
 - Slice 13: the preview and apply flow has not been checked in a browser (tests only). PLAN.md's manual check (upload `samples/sample_roster_C217.xlsx` with group number `C217`, see the new group; the "see 3 groups" wording is obsolete) is still to do.
-- Slice 13: `apply_upload(upload, actor, actor_label=None)` does not call `check_groups`; the caller must. Slice 25's `seed_demo` must do so too.
+- Slice 13: `apply_upload(upload, actor, actor_label=None)` does not call `check_groups`; the caller must. Slice 26's `seed_demo` must do so too. PLAN.md's Slice 26 text still says `samples/sample_roster.xlsx`, a Course Group column and course number `216.18`; all obsolete after the change after Slice 21 (use `sample_roster_C216.xlsx` and group number `C216`).
 - Slice 13: the apply step runs `select_for_update` on the upload row, which SQLite ignores, so the double-submit guard is only tested sequentially (`test_confirm_twice_does_not_reapply`), not under real concurrency.
 - Slice 13: in ID mode an existing cadet whose ID matches is kept even if inactive and renamed in the same upload (reactivation wins, the rename is applied silently with no `CADET_RENAMED` event).
 - Slice 13: cadets missing from the file keep their old `position`, so positions in a group can repeat or have gaps after a re-upload.
@@ -147,4 +151,4 @@
 - Averages rounded half up to whole numbers (2.5 → C). Total = sum of six (6–30).
 - One group per upload, typed by the admin each time (box starts empty); the group number is the course.
 - `.xlsx` only, 5 MB max. The last admin can't be demoted or deactivated.
-- Slice 1 to 24 tests are frozen (except as changed at the user's request, see above): don't modify test files unless the user asks.
+- Slice 1 to 25 tests are frozen (except as changed at the user's request, see above): don't modify test files unless the user asks.
