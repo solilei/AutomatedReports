@@ -699,7 +699,7 @@ Test files created by a slice are part of that slice. After the slice is done, d
 
 ---
 
-### [ ] 13. Roster upload step 3: preview and confirm
+### [x] 13. Roster upload step 3: preview and confirm
 
 **Files**
 - Change `roster/services.py`, `roster/views.py`, `roster/urls.py`.

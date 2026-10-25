@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Preview roster{% endblock %}
+{% block content %}
+<h1>Preview roster</h1>
+<p>{{ upload.original_filename }} (course {{ upload.course_number }})</p>
+{% if errors %}
+<ul class="errors">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+{% endif %}
+{% for change in changes %}
+<section>
+  <h2>{{ change.number }}</h2>
+  <p>{% if change.is_new %}New group{% else %}Existing group{% endif %}, course
+    {% if change.course_old and change.course_old != change.course_new %}{{ change.course_old }} → {{ change.course_new }}{% else %}{{ change.course_new }}{% endif %}</p>
+  {% if change.added %}<h3>Cadets added</h3><ul>{% for n in change.added %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+  {% if change.deactivated %}<h3>Cadets no longer present (will be marked inactive, data kept)</h3><ul>{% for n in change.deactivated %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+  {% if change.reactivated %}<h3>Cadets returning (will be reactivated)</h3><ul>{% for n in change.reactivated %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+  {% if change.renamed %}<h3>Cadets renamed</h3><ul>{% for old, new in change.renamed %}<li>{{ old }} → {{ new }}</li>{% endfor %}</ul>{% endif %}
+  <p>Unchanged: {{ change.unchanged }}</p>
+</section>
+{% endfor %}
+<form method="post">
+  {% csrf_token %}
+  <button type="submit"{% if errors %} disabled{% endif %}>Confirm and apply</button>
+  <a href="{% url 'roster:upload' %}">Cancel</a>
+</form>
+{% endblock %}

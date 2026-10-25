@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.http import Http404
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import admin_required
@@ -8,7 +8,7 @@ from audit.service import log
 
 from .forms import ColumnForm, UploadForm
 from .models import RosterColumnPreference, RosterUpload
-from .services import check_groups, parse_rows, read_sheet
+from .services import apply_upload, build_preview, check_groups, parse_rows, read_sheet
 
 
 def home(request):
@@ -80,4 +80,27 @@ def upload_columns(request, pk):
 
 @admin_required
 def upload_preview(request, pk):
-    raise Http404
+    upload = get_object_or_404(RosterUpload, pk=pk)
+    if upload.status == "uploaded":
+        return redirect("roster:upload_columns", pk=upload.pk)
+    if upload.status == "applied":
+        messages.info(request, "This upload has already been applied.")
+        return redirect("roster:upload")
+    if request.method == "POST":
+        with transaction.atomic():
+            upload = RosterUpload.objects.select_for_update().get(pk=pk)
+            if upload.status != "parsed":
+                messages.info(request, "This upload has already been applied.")
+                return redirect("roster:upload")
+            errors = check_groups(list(upload.parsed["groups"]), upload.parsed["id_mode"])
+            if not errors:
+                apply_upload(upload, request.user)
+                messages.success(request, "Roster applied.")
+                return redirect("home")
+    else:
+        errors = check_groups(list(upload.parsed["groups"]), upload.parsed["id_mode"])
+    return render(
+        request,
+        "roster/upload_preview.html",
+        {"upload": upload, "errors": errors, "changes": build_preview(upload)},
+    )
