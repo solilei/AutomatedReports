@@ -7,6 +7,8 @@ app_name = "accounts"
 urlpatterns = [
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
+    path("mfa/setup/", views.mfa_setup, name="mfa_setup"),
+    path("mfa/verify/", views.mfa_verify, name="mfa_verify"),
     path("pending/", views.pending, name="pending"),
     path("password/set/", views.password_set, name="password_set"),
 ]

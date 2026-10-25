@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Enter code{% endblock %}
+{% block content %}
+<h1>Enter your authentication code</h1>
+{% if error %}<p class="messages"><span class="error">{{ error }}</span></p>{% endif %}
+<form method="post">
+  {% csrf_token %}
+  <label>Code <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>
+  <button type="submit">Verify</button>
+</form>
+{% endblock %}
