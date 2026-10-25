@@ -21,7 +21,7 @@
 - Slice 18 (Group lifecycle: `roster/lifecycle.py` `change_status`/`delete_group`, views `group_lock`/`group_unlock`/`group_archive`/`group_unarchive`/`group_delete` and URLs, admin buttons in `group_detail.html`, `group_delete_confirm.html`) committed and pushed at `842bfb6`. 16 new tests; 223 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 19 (Cadet management: `cadet_list`/`cadet_delete` in `roster/views.py`, URLs, `cadet_list.html`, `cadet_delete_confirm.html`, "Manage cadets" link in `group_detail.html`) committed and pushed at `95935ed`. 5 new tests; 228 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - Slice 20 ("My score sets" and admin score-set views: `my_score_sets`/`group_score_sets`/`score_set_detail` in `scoring/views.py`, URLs, three templates, "My score sets" nav link, admin "All score sets" link in `group_detail.html`) committed and pushed at `f0a140e`. 5 new tests; 233 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
-- Slice 21 (Results calculation: `scoring/results.py` `round_average`/`CadetResult`/`group_results`, `BAND_HEX`, `FLAG_BELOW`) not committed. 15 new tests; 248 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
+- Slice 21 (Results calculation: `scoring/results.py` `round_average`/`CadetResult`/`group_results`, `BAND_HEX`, `FLAG_BELOW`) committed and pushed at `8661783`. 15 new tests; 248 in the full suite; `check` and `makemigrations --check` are clean. Ticked in PLAN.md.
 - `.venv` created locally (git-ignored); run `source .venv/bin/activate` first.
 ## Next
 - Slice 22 (Results page) in PLAN.md, only when the user says to start. Don't write code until then.
