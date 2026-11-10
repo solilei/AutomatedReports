@@ -220,15 +220,15 @@ __marimo__/
 .streamlit/secrets.toml
 .env
 
-# Kept on this machine only, never pushed: Claude working docs, guides and tests.
-# GitHub gets just the program and the sample rosters.
+# Kept on this machine only, never pushed: Claude working docs, the hosting guide,
+# demo credentials and tests. GitHub gets the program, the sample rosters,
+# README.md and docs/RUN_LOCALLY.md.
 CLAUDE.md
 SHOWCASE_CREDENTIALS.md
 HANDOFF.md
 PLAN.md
 REQUIREMENTS.md
 report.md
-README.md
-docs/
+docs/HOSTING.md
 .claude/
 */tests/

@@ -1,0 +1,292 @@
+# AutomatedReports
+
+A Django web app for cadet soft-skill reports. Instructors score cadets on six soft-skill attributes. The site calculates the averages. An admin exports the filled-in Cadet Soft Skills Report (`.xlsx`).
+
+**This is a local proof of concept.** It runs on one computer. Only that computer can open it, at `http://127.0.0.1:8000`. Hosting for colleagues is on hold. The earlier hosting notes are in `docs/HOSTING.md`, a local file that is not on GitHub. Use **fake cadet names only**. The rosters in `samples/` are fake.
+
+More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password resets and troubleshooting.
+
+---
+
+## Features
+
+### Roles
+- **Admin:** can do everything that an instructor can do. An admin also manages rosters, accounts and subjects. An admin can lock, archive and delete groups, export reports and read the audit log.
+- **Instructor:** can select any group and score it. An instructor sees results only for their own subjects. Instructors cannot export, manage anything or read the audit log.
+
+### Sign-in and accounts
+- **No self-registration.** An admin creates each account. The site shows the admin a one-time temporary password. The site sends no email.
+- **First admin.** Create the first admin from the command line on the PC (`createadmin`). The website never lets a user become an admin without an existing admin.
+- **New password at first sign-in.** A password must have at least 12 characters. It must not be too common, all numbers or too similar to the username.
+- **Authenticator-app MFA.** At first sign-in, the user scans a QR code. After that, the user types a 6-digit code at each sign-in. You can disable MFA for local tests. MFA is always on when debug mode is off.
+- **Lockout.** 5 wrong passwords or codes in a row lock the account for 15 minutes.
+- **Admin account tools:** approve, promote, demote, deactivate, reactivate and **Reset**. Reset gives a new temporary password, clears the lock and unlinks the authenticator app.
+- **Admin safeguards.** Nobody can demote or deactivate the last remaining admin. An admin cannot deactivate their own account.
+- **Automatic sign-out** after 30 minutes without activity, or when the browser closes.
+- **"Sign in with Microsoft"** (Microsoft Entra ID): the program includes it, but it is off.
+  - The site accepts only accounts from the organisation's own Microsoft tenant.
+  - A first Microsoft sign-in makes a pending account. The account waits for admin approval.
+  - The site stores no password for these accounts.
+
+### Roster upload (admin)
+- **Upload.** Use one `.xlsx` file (5 MB maximum) for each group. The admin types the group number, for example `C216`. A group number can contain letters, digits, `.`, `_` and `-`.
+- **Column picker.** The site shows the header row and some sample rows. The admin selects the Name column and, if the file has one, a Cadet ID column. The site remembers this choice for the next upload. The site skips title rows above the header row.
+- **Checks.** The site rejects these problems and gives the spreadsheet row number:
+  - names longer than 200 characters, or IDs longer than 50
+  - blank names or IDs
+  - duplicate IDs, or duplicate names when the file has no ID column
+- **Cadet identity:**
+  - **With an ID column:** the site matches cadets by ID. Leading zeros do not change an ID (`00123` = `123`).
+  - **Without an ID column:** the site matches cadets by name. Upper and lower case do not change a name.
+- **Preview before changes.** The preview:
+  - lists new cadets, cadets that are no longer in the file, returning cadets and renamed cadets
+  - flags names that look like one name with a spelling change
+  - shows the updated preview, and applies nothing, if the roster changed after the site showed the first preview
+- **Discard.** An admin can discard an upload. This deletes the stored file. The site discards uploads that stay unfinished for 24 hours.
+- **No silent deletion.** If a new file does not include a cadet, the site marks that cadet inactive. The site hides an inactive cadet but keeps the data. Only an admin can permanently delete a cadet.
+
+### Groups (admin)
+- **Groups page.** It shows the number of active cadets, inactive cadets and score sets for each group. Each group also has a **Manage cadets** page.
+- **Statuses:**
+  - **Active.**
+  - **Locked:** read-only for everyone. For example, lock a group when the report goes to HGS. Only an admin can unlock a group.
+  - **Archived:** read-only and not in the dropdowns. Unarchive returns the group to its previous status.
+- **Permanent delete.** An admin can delete an archived group with all its data. This includes the group's unfinished uploads. It also deletes cadet names, scores and comments from the group's audit entries.
+- **Group numbers.** Each group number is unique. The site never uses a group number again, even after a deletion.
+
+### Subjects (admin)
+- **Fixed list.** Instructors select a subject from a dropdown. They cannot type a subject.
+- **Add, rename, deactivate or reactivate.** Nobody can rename a subject that a locked or archived group uses. A deactivated subject cannot start a new score set. Its existing score sets stay editable.
+
+### Scoring (instructors and admins)
+- **Sequence:** select a group, then a subject. Then complete a grid of the group's active cadets.
+- **Six attributes for each cadet:**
+  - Attentiveness / Engagement
+  - Motivation / Diligence / Enthusiasm
+  - Discipline / Courtesy
+  - Attire / Appearance
+  - Teamwork
+  - Communication / Participation / Interaction
+- **Scores.** Each score is a whole number from 1 to 5, or blank:
+  - 5: A, Excellent
+  - 4: B, Above standard
+  - 3: C, Meets standard
+  - 2: D, Below standard
+  - 1: E, Unacceptable
+
+  Each cadet can also get a comment of up to 1000 characters.
+- **One score set for each instructor, subject and group.** An instructor who teaches two subjects to a group saves one set for each subject.
+- **Save rules:**
+  - A save needs at least one score.
+  - The first save fills blank cells with 3.
+  - Later saves keep blank cells. The site shows how many blank cells count as 3. The site saves only after the instructor presses **Save** again.
+- **Roster changes during scoring:**
+  - The grid marks cadets that an admin added after the instructor's last save: "added since your last save".
+  - If the cadet list changes while the page is open, the site saves nothing. The page then shows the current list.
+- **My score sets** lists the score sets of the user who is signed in.
+- **Shared subjects.** Two instructors can score the same subject for a group. Each of them can then see the other's score set for that subject, with scores and comments. Admins can see all score sets.
+
+### Results
+- **Table for each group:** No., name, the six attribute averages and a Total. The Total is the sum of the six averages (6–30).
+- **Averages** are whole numbers. An average of exactly x.5 rounds up, so 2.5 counts as C.
+- **Grade colours.** The site colours each average cell with the report's grade colour, from green (5) to red (1).
+- **Flag.** The site flags a cadet **Below C – HGS consultation** if an attribute average is below 2.5.
+- **Missing scores:**
+  - A blank cell in a saved set counts as 3.
+  - If a saved set has no row for a cadet, that set counts as 3 for each attribute of the cadet.
+  - A cadet with no scores shows "no data".
+  - The table does not include inactive cadets.
+- **Who sees what.** Admins see all subjects. Instructors see only the subjects that they scored in that group. Both can show one subject at a time.
+
+### Export (admin)
+- **One `.xlsx` file for each group.** The file copies the layout of the Cadet Soft Skills Report template:
+  - title, department, instructions and grading-system key, in the template colours
+  - landscape A4
+  - a sheet with the group number as its name
+- **Header:** the course (the group number), each instructor who saved a score set, each subject and the export date.
+- **Table:** one row for each active cadet, with coloured averages and the Total. The table does not include inactive cadets.
+- **"Additional comments":** the comments, grouped by cadet, in the format *cadet name — instructor (subject): comment*.
+
+### Audit log (admin)
+- **Who, what and when for each change:**
+  - score changes (old value → new value) and comment changes
+  - roster uploads, applies and discards, and cadet changes
+  - exports
+  - account creation, approval, promotion, deactivation, resets and lockouts
+  - subject changes
+  - group lock, unlock, archive and delete
+  - cadet deletion
+- **Filter** by action and by group.
+- **No edits or deletions.** Nobody can edit or delete an entry. One exception: a group deletion also deletes the cadet details in that group's entries.
+
+### Other
+- **`seed_demo`** loads three fake groups and three subjects for demos.
+- **Time zone.** Times and export dates use UTC+8 by default.
+- **Database.** The program uses SQLite: one file, with no setup. The database code can change to PostgreSQL later.
+- **Local only.** Only this computer can open the site (`127.0.0.1`).
+
+---
+
+## Showcase on a new PC
+
+These steps take a new computer to a full demo. Setup takes approximately 10 minutes. The demo takes approximately 15 minutes.
+
+### 1. Requirements for the PC
+
+- **Python 3.14** from python.org. On Windows, select **"Add python.exe to PATH"** in the installer.
+- **The project folder.** Copy the full folder to a plain local folder, for example `C:\Dev\AutomatedReports` or `~/Dev/AutomatedReports`.
+  - Do not copy `.venv` or `db.sqlite3`. They belong to the old PC. Step 2 makes new ones.
+  - Do not use a folder that OneDrive syncs. Syncing can damage the database file.
+  - The GitHub copy contains the program, the sample rosters, this README and `docs/RUN_LOCALLY.md`. It does not contain `SHOWCASE_CREDENTIALS.md` or the tests. Copy the folder. Do not only clone the GitHub copy.
+- **A web browser.** The optional MFA demo (step 6) also needs a phone with an authenticator app.
+
+### 2. One-time setup
+
+Open a terminal in the project folder.
+
+**Windows (PowerShell)**
+```powershell
+py -3.14 -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py seed_demo
+python manage.py createadmin --username admin --full-name "Demo Admin"
+```
+If PowerShell does not run `Activate.ps1`, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` one time. Then try again.
+
+**macOS / Linux**
+```bash
+python3.14 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py seed_demo
+python manage.py createadmin --username admin --full-name "Demo Admin"
+```
+
+The commands do these tasks:
+- `migrate` makes the database file `db.sqlite3`.
+- `seed_demo` loads the subjects Air Law, Meteorology and Navigation. It also loads three fake groups (C216, C217 and C218, with 44 cadets).
+- `createadmin` shows a **temporary password one time**. Copy it. You need it in step 4.
+
+### 3. Start the server
+
+Disable MFA for the demo, so nobody needs an authenticator app. Then start the server. Use the same terminal. The prompt must start with `(.venv)`.
+
+```powershell
+# Windows PowerShell
+$env:MFA_REQUIRED = "false"
+python manage.py runserver
+```
+```bash
+# macOS / Linux
+MFA_REQUIRED=false python manage.py runserver
+```
+
+Open **http://127.0.0.1:8000**. To stop the server, press `Ctrl+C`. Never start the server with `0.0.0.0`.
+
+### 4. Demo accounts
+
+**`SHOWCASE_CREDENTIALS.md`** in the project folder contains the usernames and passwords. It is a local file that never goes to GitHub. Copy it with the folder.
+- The admin is `admin`. The instructors are `alex` and `sam`.
+- Each user signs in first with a one-time temporary password. Then the user sets the password from that file.
+
+Use a **normal browser window for the admin**. Use a **private (incognito) window for the instructors**. Then both users can stay signed in at the same time.
+
+### 5. Demo walkthrough
+
+**A. The admin makes the accounts** (normal window)
+1. Sign in as `admin` with the temporary password from step 2.
+2. Set the admin password from `SHOWCASE_CREDENTIALS.md`.
+3. Open **Accounts** → **Create local account**.
+4. Create username `alex`, full name `Alex Tan`, role Instructor. The site shows the temporary password **one time**. Write it down.
+5. Do the same for `sam` / `Sam Lee`.
+6. Tell the audience: there is no self-registration. Only an admin can make accounts. The audit log records each action.
+
+**B. The first instructor scores** (private window)
+1. Sign in as `alex` with the temporary password.
+2. Set Alex's password from `SHOWCASE_CREDENTIALS.md`.
+3. On **Home**, select **C216**. Press **Open**.
+4. Select the subject **Navigation**. Press **Score**.
+5. Give the first cadet (**Hana Tan**) a **2** for *Attire / Appearance*. Enter some other scores in the grid.
+6. Add a comment for one cadet. Press **Save**.
+7. Tell the audience: the first save fills blank cells with 3 (meets standard).
+8. Return to the group page. Select **Air Law** and press **Score**. Enter some scores and press **Save**. Now Alex teaches two subjects to C216.
+9. Open **Results** (a link on the group page). An instructor sees combined results only for the subjects that they scored. The **Subject** dropdown shows one subject at a time.
+10. Press **Sign out**.
+
+**C. The second instructor scores the same subject** (same private window)
+1. Sign in as `sam` with the temporary password.
+2. Set Sam's password from `SHOWCASE_CREDENTIALS.md`.
+3. Score **C216** in **Navigation**. Give **Hana Tan** a **1** for *Attire / Appearance*. Press **Save**.
+4. On the group page, find **Colleagues' score sets for your subjects**. Open Alex's Navigation set. Instructors who teach the same subject to a group can see each other's scores.
+5. Open **Results**. Hana Tan's *Attire* average is (2 + 1) / 2 = 1.5. Thus the site flags the row **Below C – HGS consultation**. The site colours each cell by grade.
+6. Return to the scoring page. Clear one cell and press **Save**. The site shows how many blank cells will count as 3. Press **Save** again to save.
+
+**D. Admin features** (normal window)
+1. Open **Results** for C216. The admin sees all subjects together. The **Subject** dropdown shows one subject at a time.
+2. On the group page, press **Export report**. The browser downloads the filled-in report (`.xlsx`). Open it in Excel or LibreOffice.
+3. Open **Audit log**. It shows each score change (old value → new value), account creation and export, with who and when.
+4. On the group page, press **Lock** for C216. In the private window, Sam reloads the scoring page. The page is now read-only. Then press **Unlock**.
+5. Open **Upload roster**. Select `samples/sample_roster_C217.xlsx`, type the group number **C300** and press **Upload**.
+6. Select **Full Name** as the Name column and **Cadet ID** as the Cadet ID column. Press **Continue**.
+7. Check the preview. Press **Confirm and apply**. C300 is now in the Home dropdown.
+8. Optional: press **Archive** on a group. The group is then not in the dropdowns. You can also open **Subjects** to add or deactivate a subject. You can open **Accounts** to promote, deactivate or reset an account.
+
+### 6. Optional: show MFA
+
+1. Press `Ctrl+C` to stop the server.
+2. Start the server again with MFA on:
+   - Windows: run `Remove-Item Env:MFA_REQUIRED`, then run `python manage.py runserver`.
+   - macOS / Linux: run `python manage.py runserver`.
+3. Sign in as `alex`. The site shows a QR code.
+4. Scan the QR code with an authenticator app, for example Microsoft Authenticator or Google Authenticator. Type the 6-digit code.
+5. After this, Alex must type a code at each sign-in. If Alex loses the phone, the admin presses **Reset** on Alex's row in **Accounts**.
+
+### 7. Reset for the next showcase
+
+1. Stop the server.
+2. Delete `db.sqlite3`. This deletes the demo accounts and scores.
+3. Run `migrate`, `seed_demo` and `createadmin` again (step 2).
+4. Continue from step 3.
+
+### Facts for a demo
+
+- A session ends after **30 minutes** without activity, or when the browser closes.
+- **5 wrong passwords in a row** lock an account for 15 minutes. The admin can clear the lock with **Reset** in **Accounts**.
+- If you forget the admin password, run `python manage.py changepassword admin`. Run it in the project folder, with `.venv` active.
+
+---
+
+## Everyday commands
+
+```bash
+python manage.py runserver               # start the site on 127.0.0.1 only. Never use 0.0.0.0.
+python manage.py test                    # run the tests. They use a separate temporary database.
+python manage.py discard_stale_uploads   # delete roster uploads that stayed unfinished for 24 hours
+```
+
+Each time an admin opens the upload page, the site also does the `discard_stale_uploads` cleanup. Thus local use does not need a schedule.
+
+## Configuration
+
+All settings are environment variables. The default values suit a local proof of concept.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `DJANGO_DEBUG` | `True` | Debug mode. Accepts `1`, `true`, `yes` or `on`. When debug mode is off, you must set `DJANGO_SECRET_KEY`. Also, the site then keeps MFA on and ignores `MFA_REQUIRED`. |
+| `DJANGO_SECRET_KEY` | an insecure development key (debug mode only) | The Django secret key. |
+| `DJANGO_ALLOWED_HOSTS` | `127.0.0.1,localhost` | The host names that the app serves, with commas between them. |
+| `DJANGO_TIME_ZONE` | `Etc/GMT-8` (UTC+8) | The time zone for times on the pages, in the audit log and on the export date. |
+| `DB_ENGINE` | `sqlite` | `sqlite` or `postgresql`. PostgreSQL also needs a driver. The project does not install it yet. |
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` | none | The PostgreSQL connection. |
+| `DB_PORT` | `5432` | The PostgreSQL port. |
+| `LOGIN_MODE` | `local` | `local`, `microsoft` or `both`. Keep `local`. Microsoft sign-in needs an app registration from IT, and that work is on hold with hosting. |
+| `MFA_REQUIRED` | `True` | Ask for an authenticator-app code at local sign-in. |
+| `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`, `ENTRA_REDIRECT_URI` | empty | The Microsoft Entra settings. They are necessary when `LOGIN_MODE` is `microsoft` or `both`. |
+| `ROSTER_MAX_UPLOAD_BYTES` | `5242880` (5 MB) | The largest roster `.xlsx` file that the site accepts. |
+
+## Fake data only
+
+Use fake cadet names only. Never load real cadet data into this proof of concept.
