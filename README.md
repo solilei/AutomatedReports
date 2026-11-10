@@ -227,7 +227,8 @@ Use a **normal browser window for the admin**. Use a **private (incognito) windo
 3. **Home** shows **Your missing scores**, including C216 General Navigation. Press that link.
 4. Score **General Navigation** and save. The C216 line disappears from **Home**.
 5. Open **Meteorology** for C216. Give **Hana Tan** a **1** for *Attire / Appearance*. Press **Save**, then **Confirm and save**.
-6. Open **Results**. Hana Tan's *Attire* average for Meteorology is (2 + 1) / 2 = 1.5. Thus the site flags the row **Below C – HGS consultation**. The site colours each cell by grade.
+6. Open **Results**. Select the subject **Meteorology**. Alex gave Hana Tan a 2 and Sam gave a 1 for *Attire*. The average is (2 + 1) / 2 = 1.5. The site rounds a .5 average up, so the cell shows **2**. The average is below 2.5. Thus the site flags the row **Below C – HGS consultation**. The site colours each cell by grade.
+   - This result needs Alex's 2 from part B. If Alex's score stays at 4, the average is 2.5. The cell then shows 3 and the site does not flag the row.
 
 **D. Admin features** (normal window)
 1. Open **Missing scores**. C216 no longer appears. C217 and C218 are still listed.
