@@ -3,7 +3,7 @@ from django.conf import settings
 from openpyxl.utils import get_column_letter
 
 from .models import RosterColumnPreference
-from .services import GROUP_NUMBER_RE, RosterError, read_sheet
+from .services import GROUP_NUMBER_RE, HEADER_SEARCH_ROWS, RosterError, read_sheet
 
 
 class UploadForm(forms.Form):
@@ -35,7 +35,10 @@ class UploadForm(forms.Form):
         except RosterError:
             raise forms.ValidationError("File is not a valid .xlsx workbook.")
         if sum(1 for h in headers if h) < 2:
-            raise forms.ValidationError("The first row must contain column headers.")
+            raise forms.ValidationError(
+                "The first row must contain column headers. Title rows above it, with at most "
+                f"one filled cell, are skipped (up to {HEADER_SEARCH_ROWS} rows)."
+            )
         self.content = content
         return file
 

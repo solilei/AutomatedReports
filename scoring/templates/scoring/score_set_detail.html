@@ -3,7 +3,8 @@
 {% block content %}
 <h1>{{ score_set.subject.name }} — group {{ score_set.group.number }}</h1>
 <p>Instructor: {{ score_set.instructor.display_name }}{% if not score_set.instructor.is_active %} (deactivated){% endif %} · Last saved {{ score_set.updated_at|date:"Y-m-d H:i" }}</p>
-<p><a href="{% url 'scoring:group_score_sets' score_set.group.number %}">Back to score sets</a></p>
+{% if request.user.is_admin %}<p><a href="{% url 'scoring:group_score_sets' score_set.group.number %}">Back to score sets</a></p>
+{% else %}<p><a href="{% url 'roster:group_detail' score_set.group.number %}">Back to group {{ score_set.group.number }}</a></p>{% endif %}
 <table>
   <thead>
     <tr>

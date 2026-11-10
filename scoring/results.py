@@ -23,16 +23,20 @@ class CadetResult:
     flagged: bool
 
 
-def group_results(group) -> list[CadetResult]:
+def group_results(group, subjects=None) -> list[CadetResult]:
+    """Results across all saved score sets, or only those for `subjects` when given."""
     cadets = list(Cadet.objects.filter(group=group, is_active=True).order_by("position", "name"))
     # Every saved score set counts for every cadet with data; a missing row counts as all 3s.
     # Sets are counted from their rows (inactive cadets included) to keep this to one query.
     active_ids = {cadet.id for cadet in cadets}
     set_ids = set()
     rows = defaultdict(list)
-    for set_id, cadet_id, *values in CadetScore.objects.filter(
-        score_set__group=group
-    ).values_list("score_set_id", "cadet_id", *ATTRIBUTE_FIELDS):
+    score_rows = CadetScore.objects.filter(score_set__group=group)
+    if subjects is not None:
+        score_rows = score_rows.filter(score_set__subject__in=subjects)
+    for set_id, cadet_id, *values in score_rows.values_list(
+        "score_set_id", "cadet_id", *ATTRIBUTE_FIELDS
+    ):
         set_ids.add(set_id)
         if cadet_id in active_ids:
             rows[cadet_id].append(values)

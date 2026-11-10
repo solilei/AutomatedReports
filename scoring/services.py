@@ -8,6 +8,10 @@ COMMENT_MAX_LENGTH = 1000
 VALID_SCORES = {"1", "2", "3", "4", "5"}
 
 
+def normalise_newlines(text):
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def parse_submission(post, cadets):
     """Read the grid POST for the given cadets.
 
@@ -28,7 +32,8 @@ def parse_submission(post, cadets):
             else:
                 scores[field] = None
                 errors.append(f"Invalid score for {cadet.name} / {label}.")
-        comment = post.get(f"c-{cadet.pk}", "").strip()
+        # Browsers send line breaks as \r\n but count them as one character for maxlength.
+        comment = normalise_newlines(post.get(f"c-{cadet.pk}", "")).strip()
         if len(comment) > COMMENT_MAX_LENGTH:
             errors.append(f"Comment for {cadet.name} is longer than {COMMENT_MAX_LENGTH} characters.")
         data[cadet.pk] = {"scores": scores, "raw": raw, "comment": comment}
@@ -52,7 +57,7 @@ def save_score_set(instructor, subject, group, data):
         instructor=instructor, subject=subject, group=group
     )
     labels = {field: label for field, label, _header in ATTRIBUTES}
-    for cadet in group.cadets.filter(is_active=True):
+    for cadet in group.cadets.filter(is_active=True, pk__in=list(data)):
         entry = data[cadet.pk]
         row, _ = CadetScore.objects.get_or_create(score_set=score_set, cadet=cadet)
         for field in ATTRIBUTE_FIELDS:

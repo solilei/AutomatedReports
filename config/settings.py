@@ -98,7 +98,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-gb"
-TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE", "UTC")
+# Etc/GMT-8 is the IANA name for UTC+8 (the sign is inverted by convention).
+TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE", "Etc/GMT-8")
 USE_I18N = True
 USE_TZ = True
 

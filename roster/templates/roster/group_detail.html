@@ -25,6 +25,14 @@
 {% else %}
 <p>None yet.</p>
 {% endif %}
+{% if shared_score_sets %}
+<h2>Colleagues' score sets for your subjects</h2>
+<ul>
+  {% for score_set in shared_score_sets %}
+  <li><a href="{% url 'scoring:score_set_detail' score_set.pk %}">{{ score_set.subject.name }} — {{ score_set.instructor.display_name }}</a> — last saved {{ score_set.updated_at|date:"Y-m-d H:i" }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
 {% if request.user.is_admin %}
 <h2>Manage group</h2>
 <p><a href="{% url 'roster:cadet_list' group.number %}">Manage cadets</a> · <a href="{% url 'scoring:group_score_sets' group.number %}">All score sets</a></p>

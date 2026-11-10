@@ -6,6 +6,7 @@ from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_not_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -44,25 +45,33 @@ def login_view(request):
         if not show_local_form:
             return HttpResponseBadRequest("Local sign-in is disabled.")
         form = AuthenticationForm(request, data=request.POST)
-        account = User.objects.filter(username=request.POST.get("username", "")).first()
-        locked = account is not None and services.is_sign_in_locked(account)
-        if locked:
-            # Unbound, so rendering never checks the password of a locked account.
-            form = AuthenticationForm(request, initial={"username": account.username})
-        elif form.is_valid():
-            user = form.get_user()
-            next_url = _safe_next(request, request.POST.get("next", ""))
-            if settings.MFA_REQUIRED:
-                request.session["mfa_user_id"] = user.pk
-                request.session["mfa_started"] = int(time.time())
-                request.session["mfa_attempts"] = 0
-                request.session["mfa_next"] = next_url
-                return redirect("accounts:mfa_verify" if user.totp_confirmed else "accounts:mfa_setup")
-            services.clear_failed_sign_ins(user)
-            login(request, user)
-            return redirect(next_url or "home")
-        elif account is not None:
-            services.record_failed_sign_in(account)
+        with transaction.atomic():
+            account_id = (
+                User.objects.filter(username=request.POST.get("username", ""))
+                .values_list("pk", flat=True)
+                .first()
+            )
+            account = services.lock_for_sign_in(account_id) if account_id else None
+            locked = account is not None and services.is_sign_in_locked(account)
+            if locked:
+                # Unbound, so rendering never checks the password of a locked account.
+                form = AuthenticationForm(request, initial={"username": account.username})
+            elif form.is_valid():
+                user = form.get_user()
+                next_url = _safe_next(request, request.POST.get("next", ""))
+                if settings.MFA_REQUIRED:
+                    request.session["mfa_user_id"] = user.pk
+                    request.session["mfa_started"] = int(time.time())
+                    request.session["mfa_attempts"] = 0
+                    request.session["mfa_next"] = next_url
+                    return redirect(
+                        "accounts:mfa_verify" if user.totp_confirmed else "accounts:mfa_setup"
+                    )
+                services.clear_failed_sign_ins(user)
+                login(request, user)
+                return redirect(next_url or "home")
+            elif account is not None:
+                services.record_failed_sign_in(account)
 
     return render(
         request,
@@ -126,6 +135,12 @@ def _mfa_expired(request):
     return redirect("accounts:login")
 
 
+def _mfa_locked(request):
+    _clear_mfa(request)
+    messages.error(request, services.LOCKED_MESSAGE)
+    return redirect("accounts:login")
+
+
 def _finish_mfa(request, user):
     next_url = request.session.get("mfa_next", "")
     _clear_mfa(request)
@@ -164,14 +179,17 @@ def mfa_verify(request):
     if user is None:
         return _mfa_expired(request)
     if services.is_sign_in_locked(user):
-        _clear_mfa(request)
-        messages.error(request, services.LOCKED_MESSAGE)
-        return redirect("accounts:login")
+        return _mfa_locked(request)
     error = ""
     if request.method == "POST":
-        if user.totp_confirmed and mfa.verify(user.totp_secret, request.POST.get("code", "")):
-            return _finish_mfa(request, user)
-        services.record_failed_sign_in(user)
+        with transaction.atomic():
+            # Re-read under a row lock: a parallel attempt may have locked the account.
+            user = services.lock_for_sign_in(user.pk)
+            if services.is_sign_in_locked(user):
+                return _mfa_locked(request)
+            if user.totp_confirmed and mfa.verify(user.totp_secret, request.POST.get("code", "")):
+                return _finish_mfa(request, user)
+            services.record_failed_sign_in(user)
         attempts = request.session.get("mfa_attempts", 0) + 1
         request.session["mfa_attempts"] = attempts
         if attempts >= MFA_MAX_ATTEMPTS:
@@ -222,12 +240,17 @@ def user_create(request):
 
 def _row_action(request, pk, action, summary, apply):
     """Runs a POST-only row action; `apply` returns an error message or None after changing the target."""
-    target = get_object_or_404(User, pk=pk)
-    error = apply(target)
+    with transaction.atomic():
+        # Lock every admin row first so two admins demoting or deactivating each other
+        # at once can't both pass the last-admin check.
+        list(User.objects.select_for_update().filter(role=User.Role.ADMIN).order_by("pk"))
+        target = get_object_or_404(User.objects.select_for_update(), pk=pk)
+        error = apply(target)
+        if not error:
+            log(request.user, action, summary.format(username=target.username), details={"username": target.username})
     if error:
         messages.error(request, error)
     else:
-        log(request.user, action, summary.format(username=target.username), details={"username": target.username})
         messages.success(request, summary.format(username=target.username) + ".")
     return redirect("accounts:user_list")
 

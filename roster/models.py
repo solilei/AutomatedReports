@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
+from django.db.models.functions import Lower
 
 
 class Group(models.Model):
@@ -46,8 +47,10 @@ class Cadet(models.Model):
                 condition=~Q(external_id=""),
                 name="unique_cadet_id_per_group",
             ),
+            # Without IDs, names identify cadets ignoring case.
             models.UniqueConstraint(
-                fields=["group", "name"],
+                F("group"),
+                Lower("name"),
                 condition=Q(external_id=""),
                 name="unique_cadet_name_per_group",
             ),

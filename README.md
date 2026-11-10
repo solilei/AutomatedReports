@@ -51,7 +51,7 @@ All settings are environment variables.
 | `DJANGO_DEBUG` | `True` | Debug mode. Accepts `1`, `true`, `yes`, `on`. When off, `DJANGO_SECRET_KEY` is required and `MFA_REQUIRED` is forced on. |
 | `DJANGO_SECRET_KEY` | insecure dev key (debug only) | Django secret key. |
 | `DJANGO_ALLOWED_HOSTS` | `127.0.0.1,localhost` | Comma-separated host names the app serves. |
-| `DJANGO_TIME_ZONE` | `UTC` | Display time zone. |
+| `DJANGO_TIME_ZONE` | `Etc/GMT-8` (UTC+8) | Time zone for displayed times, the audit log and the export date. |
 | `DB_ENGINE` | `sqlite` | `sqlite` or `postgresql`. |
 | `DB_NAME` | none | PostgreSQL database name. |
 | `DB_USER` | none | PostgreSQL user. |

@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Choose columns</h1>
 <p>{{ upload.original_filename }} (group {{ upload.group_number }})</p>
+<p>Column headers taken from row {{ header_row }}{% if header_row > 1 %}; the rows above it were skipped as titles{% endif %}.</p>
 <table>
   <thead><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
   <tbody>

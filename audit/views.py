@@ -1,4 +1,5 @@
 import json
+from urllib.parse import urlencode
 
 from django.core.paginator import Paginator
 from django.shortcuts import render
@@ -31,6 +32,6 @@ def event_list(request):
             "action": action,
             "group": group,
             "action_choices": ACTION_CHOICES,
-            "filter_query": "&".join(f"{k}={v}" for k, v in filters.items()),
+            "filter_query": urlencode(filters),
         },
     )

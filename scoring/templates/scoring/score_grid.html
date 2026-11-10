@@ -11,6 +11,7 @@
 <p class="score-legend">{% for value, text in score_choices %}{{ text }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
 <form method="post">
   {% csrf_token %}
+  <input type="hidden" name="cadet_ids" value="{{ cadet_ids }}">
   {% if confirm_blanks %}<input type="hidden" name="confirm_blanks" value="{{ confirm_blanks }}">{% endif %}
   <table class="score-grid">
     <thead>

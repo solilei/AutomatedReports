@@ -168,7 +168,7 @@ All settings are environment variables; the full list is in `README.md`. The use
 | Variable | Example | Effect |
 |---|---|---|
 | `MFA_REQUIRED` | `false` | Skip the authenticator code (local only). |
-| `DJANGO_TIME_ZONE` | `Europe/London` | Time zone for dates in the audit log and export. Default is `UTC`. |
+| `DJANGO_TIME_ZONE` | `Europe/London` | Time zone for dates in the audit log and export. Default is `Etc/GMT-8` (UTC+8). |
 | `ROSTER_MAX_UPLOAD_BYTES` | `5242880` | Largest roster file accepted (default 5 MB). |
 
 Leave `LOGIN_MODE` at `local`. Microsoft sign-in needs an Entra app registration from IT; see `docs/HOSTING.md`.

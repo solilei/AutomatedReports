@@ -1,9 +1,10 @@
 from django.db import transaction
 
 from audit import actions
-from audit.service import log
+from audit.service import log, redact_group
 
-from .models import DeletedGroupNumber, Group
+from .models import DeletedGroupNumber, Group, RosterUpload
+from .services import OPEN_UPLOAD_STATUSES, discard_upload
 
 Status = Group.Status
 
@@ -60,6 +61,14 @@ def delete_group(group, actor):
             "score_sets": group.score_sets.count(),
         }
         DeletedGroupNumber.objects.create(number=group.number)
+        # "All its data": unfinished uploads hold the whole roster file, and audit
+        # events hold cadet names, scores and comments.
+        open_uploads = RosterUpload.objects.select_for_update().filter(
+            group_number=group.number, status__in=OPEN_UPLOAD_STATUSES
+        )
+        for upload in open_uploads:
+            discard_upload(upload, actor, reason=f"group {group.number} was deleted")
+        redact_group(group.number)
         log(
             actor,
             actions.GROUP_DELETED,

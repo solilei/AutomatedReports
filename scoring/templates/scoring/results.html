@@ -3,7 +3,20 @@
 {% block content %}
 <h1>Results for group {{ group.number }}</h1>
 <p><a href="{% url 'roster:group_detail' group.number %}">Back to group</a></p>
-<p>Based on {{ score_set_count }} saved score set{{ score_set_count|pluralize }}.</p>
+{% if subjects is not None and not subjects %}
+<p>You haven't saved scores for this group yet. Once you have, this page shows the combined results for your subjects.</p>
+{% else %}
+{% if subject_choices|length > 1 %}
+<form method="get">
+  <label for="subject">Subject</label>
+  <select name="subject" id="subject">
+    <option value="">{% if request.user.is_admin %}All subjects{% else %}All my subjects{% endif %}</option>
+    {% for subject in subject_choices %}<option value="{{ subject.pk }}"{% if subject == selected_subject %} selected{% endif %}>{{ subject.name }}</option>{% endfor %}
+  </select>
+  <button type="submit">Show</button>
+</form>
+{% endif %}
+<p>Based on {{ score_set_count }} saved score set{{ score_set_count|pluralize }}.{% if selected_subject %} Showing {{ selected_subject.name }} only.{% elif subjects %} Showing your subject{{ subjects|length|pluralize }} only: {% for subject in subjects %}{{ subject.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}</p>
 <ul class="band-key">
   {% for value, hex, label in key %}
   <li><span class="band-{{ value }}" style="background:#{{ hex }}">&nbsp;&nbsp;&nbsp;</span> {{ label }}</li>
@@ -35,4 +48,5 @@
     {% endfor %}
   </tbody>
 </table>
+{% endif %}
 {% endblock %}

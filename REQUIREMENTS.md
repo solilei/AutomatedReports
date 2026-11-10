@@ -13,6 +13,7 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 - [ ] PoC uses **fake cadet names only**; no real cadet data until the app runs on approved hosting
 - [ ] Database layer is written so it can switch to PostgreSQL for production
 - [ ] PoC includes every feature in this document; Microsoft sign-in is built but switched off
+- [ ] Dates and times use UTC+8 by default; a configuration setting can change the time zone
 
 ## 2. Authentication
 
@@ -54,10 +55,11 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 ### Instructor can
 - [ ] Select any group (no per-group assignment)
 - [ ] Create, view and edit **their own** score sets
-- [ ] View the group's combined results (averages, sums, flags)
+- [ ] View the group's combined results (averages, sums, flags) for the subjects they have scored in that group only, for all those subjects together or one subject at a time
+- [ ] View the score sets (scores and comments) of other instructors for a subject they have also scored in the same group
 
 ### Instructor cannot
-- [ ] See other instructors' individual scores or score sets
+- [ ] See other instructors' individual scores or score sets, except as below
 - [ ] Export anything
 - [ ] Upload rosters, manage accounts, manage subjects, lock/archive/delete groups, or view the audit log
 
@@ -77,7 +79,8 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 - [ ] Admin-only
 - [ ] Accepts `.xlsx` files only
 - [ ] Enforces a maximum file size of 5 MB
-- [ ] Roster contains one column for group number, one for cadet name, plus other columns that are ignored
+- [ ] Roster contains one column for cadet name, optionally a cadet ID column, plus other columns that are ignored; it has no group column
+- [ ] The header row may have title rows above it (rows with at most one filled cell); error messages give spreadsheet row numbers
 - [ ] After upload, the site shows the file's header row and the admin picks the Name column (there is no Group column; see below)
 - [ ] The site remembers the last column choice and pre-selects it next time
 - [ ] If the roster has a cadet ID column, the admin can choose it as the cadet identifier
@@ -90,7 +93,8 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 ### Cadet identity
 - [ ] If an ID column is chosen, cadets are identified by ID and displayed by name
 - [ ] Digit-only IDs ignore leading zeros (`00123` and `123` are the same cadet)
-- [ ] If no ID column, cadets are identified by (group, name)
+- [ ] If no ID column, cadets are identified by (group, name), ignoring upper/lower case
+- [ ] Without an ID column, the re-upload preview warns when a removed name and an added name look like the same cadet respelled
 - [ ] Without an ID column, an upload with duplicate names in the same group is rejected with a clear message until the admin fixes the file
 
 ### Re-uploading an existing group
@@ -146,7 +150,9 @@ A Python web app where instructors score cadets on six soft-skill attributes, th
 
 - [ ] Per-group results table showing active cadets only
 - [ ] Columns: No., Name, six attribute averages, **sum of the six averages** (range 6–30) as the last column
-- [ ] Averages are taken across all saved score sets for that group (all instructors and subjects)
+- [ ] For admins, averages are taken across all saved score sets for that group (all instructors and subjects)
+- [ ] For instructors, averages are taken only across saved score sets for the subjects that instructor scored in that group (all instructors of those subjects)
+- [ ] An instructor who has not scored the group sees no results, with a message explaining why
 - [ ] A blank score inside a **saved** score set counts as 3
 - [ ] A saved score set with no row for a cadet (e.g. the cadet was added later) counts as 3 for every attribute of that cadet
 - [ ] Instructors who never saved a score set for the group are not counted

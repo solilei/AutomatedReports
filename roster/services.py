@@ -1,11 +1,13 @@
+import difflib
 import hashlib
 import json
 import re
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from io import BytesIO
 
 from django.db import transaction
+from django.utils import timezone
 from openpyxl import load_workbook
 
 
@@ -29,23 +31,55 @@ def cell_text(v):
     return " ".join(str(v).split())
 
 
-def read_sheet(content):
+HEADER_SEARCH_ROWS = 10  # title rows allowed above the header row
+
+
+@dataclass
+class Sheet:
+    headers: list[str]
+    rows: list[list[str]]
+    header_row: int  # 1-based spreadsheet row number of the headers
+
+    @property
+    def first_data_row(self):
+        return self.header_row + 1
+
+
+def _is_header(cells):
+    return sum(1 for v in cells if cell_text(v)) >= 2
+
+
+def read_roster(content):
+    """Read the first sheet. The header row is the first row with two or more filled
+    cells; rows above it with at most one filled cell (titles, blank rows) are skipped."""
     try:
         workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
         try:
             rows = workbook.worksheets[0].iter_rows(values_only=True)
-            first = next(rows, ())
+            first, header_row = (), 1
+            for number, row in enumerate(rows, start=1):
+                if _is_header(row):
+                    first, header_row = row, number
+                    break
+                if number >= HEADER_SEARCH_ROWS:
+                    break
             headers = [cell_text(v) for v in first]
             width = len(headers)
             data = []
-            for row in rows:
-                cells = [cell_text(v) for v in row[:width]]
-                data.append(cells + [""] * (width - len(cells)))
+            if width:
+                for row in rows:
+                    cells = [cell_text(v) for v in row[:width]]
+                    data.append(cells + [""] * (width - len(cells)))
         finally:
             workbook.close()
     except Exception as exc:
         raise RosterError(str(exc)) from exc
-    return headers, data
+    return Sheet(headers, data, header_row)
+
+
+def read_sheet(content):
+    sheet = read_roster(content)
+    return sheet.headers, sheet.rows
 
 
 GROUP_NUMBER_RE = re.compile(r"(?=.*[A-Za-z0-9])[A-Za-z0-9._-]{1,20}")
@@ -67,11 +101,16 @@ class ParseResult:
     errors: list[str] = field(default_factory=list)
 
 
-def parse_rows(rows, group_number, name_col, id_col=None):
+def name_key(name):
+    """Without an ID column, names identify cadets ignoring case: 'JOHN SMITH' is 'John Smith'."""
+    return name.casefold()
+
+
+def parse_rows(rows, group_number, name_col, id_col=None, first_row=2):
     result = ParseResult()
     seen = {}
     for index, row in enumerate(rows):
-        number = index + 2
+        number = first_row + index
         name = " ".join(row[name_col].split())
         external_id = normalise_id(row[id_col].strip()) if id_col is not None else ""
         if not (name or external_id):
@@ -91,9 +130,10 @@ def parse_rows(rows, group_number, name_col, id_col=None):
         result.groups.setdefault(group_number, []).append(
             {"name": name, "external_id": external_id, "row": number}
         )
-        key = (group_number, external_id if id_col is not None else name)
-        seen.setdefault(key, []).append(number)
-    for (group, value), numbers in seen.items():
+        key = (group_number, external_id if id_col is not None else name_key(name))
+        _, numbers = seen.setdefault(key, (external_id or name, []))
+        numbers.append(number)
+    for (group, _key), (value, numbers) in seen.items():
         if len(numbers) < 2:
             continue
         listed = ", ".join(str(n) for n in numbers)
@@ -152,6 +192,22 @@ class GroupChange:
     reactivated: list[str] = field(default_factory=list)
     renamed: list[tuple[str, str]] = field(default_factory=list)
     unchanged: int = 0
+    # Name mode only: (no longer present, added) pairs that look like one cadet respelled.
+    possible_respellings: list[tuple[str, str]] = field(default_factory=list)
+
+
+RESPELLING_CUTOFF = 0.8  # difflib similarity ratio
+
+
+def _possible_respellings(removed, added):
+    pairs = []
+    candidates = list(added)
+    for old in removed:
+        match = difflib.get_close_matches(old, candidates, n=1, cutoff=RESPELLING_CUTOFF)
+        if match:
+            pairs.append((old, match[0]))
+            candidates.remove(match[0])
+    return pairs
 
 
 def _diff_group(upload, number, entries, group):
@@ -167,11 +223,11 @@ def _diff_group(upload, number, entries, group):
     existing = {}
     if group is not None:
         for cadet in group.cadets.all():
-            existing[normalise_id(cadet.external_id) if id_mode else cadet.name] = cadet
+            existing[normalise_id(cadet.external_id) if id_mode else name_key(cadet.name)] = cadet
     steps = []
     in_file = set()
     for position, entry in enumerate(entries, start=1):
-        key = entry["external_id"] if id_mode else entry["name"]
+        key = entry["external_id"] if id_mode else name_key(entry["name"])
         in_file.add(key)
         cadet = existing.get(key)
         if cadet is None:
@@ -181,7 +237,8 @@ def _diff_group(upload, number, entries, group):
         if not cadet.is_active:
             change.reactivated.append(entry["name"])
             steps.append(("reactivate", cadet, entry, position))
-        elif id_mode and cadet.name != entry["name"]:
+        elif cadet.name != entry["name"]:
+            # ID mode: any new name. Name mode: same name, different capitals.
             change.renamed.append((cadet.name, entry["name"]))
             steps.append(("rename", cadet, entry, position))
         else:
@@ -191,6 +248,8 @@ def _diff_group(upload, number, entries, group):
         if key not in in_file and cadet.is_active:
             change.deactivated.append(cadet.name)
             steps.append(("deactivate", cadet, None, cadet.position))
+    if not id_mode:
+        change.possible_respellings = _possible_respellings(change.deactivated, change.added)
     return change, steps
 
 
@@ -225,6 +284,8 @@ def apply_upload(upload, actor, actor_label=None):
     id_mode = upload.parsed["id_mode"]
     applied = []
     with transaction.atomic():
+        # Hold the existing groups so a score save or another upload waits for this one.
+        list(Group.objects.select_for_update().filter(number__in=list(upload.parsed["groups"])))
         for change, steps in _diff_upload(upload):
             number = change.number
 
@@ -298,3 +359,42 @@ def apply_upload(upload, actor, actor_label=None):
             actor_label=actor_label,
         )
     return applied
+
+
+OPEN_UPLOAD_STATUSES = ["uploaded", "parsed"]
+STALE_UPLOAD_AGE = timedelta(hours=24)
+
+
+def discard_upload(upload, actor, *, actor_label=None, reason=""):
+    """Delete an open upload's stored file and parsed rows, and log it."""
+    from audit import actions
+    from audit.service import log
+
+    upload.status = "discarded"
+    upload.file_content = b""
+    upload.parsed = {}
+    upload.save()
+    summary = f"Roster '{upload.original_filename}' discarded"
+    details = {"upload_id": upload.pk, "filename": upload.original_filename}
+    if reason:
+        summary += f" ({reason})"
+        details["reason"] = reason
+    log(actor, actions.ROSTER_DISCARDED, summary, details=details, actor_label=actor_label)
+
+
+def discard_stale_uploads(max_age=STALE_UPLOAD_AGE):
+    """Discard uploads left unfinished for longer than max_age; return how many."""
+    from .models import RosterUpload
+
+    cutoff = timezone.now() - max_age
+    count = 0
+    with transaction.atomic():
+        stale = RosterUpload.objects.select_for_update().filter(
+            status__in=OPEN_UPLOAD_STATUSES, uploaded_at__lt=cutoff
+        )
+        for upload in stale:
+            discard_upload(
+                upload, None, actor_label="system", reason="left unfinished for over 24 hours"
+            )
+            count += 1
+    return count

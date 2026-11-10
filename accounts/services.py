@@ -1,6 +1,8 @@
 import secrets
 import time
 
+from django.db.models import F
+
 from audit import actions
 from audit.service import log
 
@@ -15,12 +17,23 @@ def is_sign_in_locked(user):
     return user.sign_in_locked_until is not None and time.time() < user.sign_in_locked_until
 
 
+def lock_for_sign_in(user_id):
+    """Fetch the user row locked until the transaction ends, so parallel sign-in attempts
+    for one account run one at a time. Call inside transaction.atomic()."""
+    return User.objects.select_for_update().filter(pk=user_id).first()
+
+
 def record_failed_sign_in(user):
-    """Count a wrong password or authenticator code; the fifth in a row locks the account."""
-    user.failed_sign_ins += 1
-    if user.failed_sign_ins >= MAX_FAILED_SIGN_INS:
-        user.failed_sign_ins = 0
-        user.sign_in_locked_until = time.time() + SIGN_IN_LOCK_SECONDS
+    """Count a wrong password or authenticator code; the fifth in a row locks the account.
+
+    Both steps are single UPDATE statements, so parallel failures are never lost.
+    """
+    rows = User.objects.filter(pk=user.pk)
+    rows.update(failed_sign_ins=F("failed_sign_ins") + 1)
+    locked = rows.filter(failed_sign_ins__gte=MAX_FAILED_SIGN_INS).update(
+        failed_sign_ins=0, sign_in_locked_until=time.time() + SIGN_IN_LOCK_SECONDS
+    )
+    if locked:
         log(
             None,
             actions.ACCOUNT_LOCKED,
@@ -28,7 +41,7 @@ def record_failed_sign_in(user):
             details={"username": user.username},
             actor_label="sign-in",
         )
-    user.save(update_fields=["failed_sign_ins", "sign_in_locked_until"])
+    user.refresh_from_db(fields=["failed_sign_ins", "sign_in_locked_until"])
 
 
 def clear_failed_sign_ins(user):

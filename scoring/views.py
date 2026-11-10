@@ -14,7 +14,7 @@ from audit.service import log
 
 from roster.models import Group
 
-from .access import get_visible_group
+from .access import can_view_score_set, get_visible_group, scored_subjects
 from . import services
 from .export import build_group_report
 from .attributes import ATTRIBUTE_FIELDS, ATTRIBUTES, BLANK_COUNTS_AS, SCORE_CHOICES
@@ -111,6 +111,7 @@ def _build_rows(group, score_set, submitted=None):
 
 
 def _render_grid(request, group, subject, score_set, submitted=None, errors=(), warning="", confirm_blanks=None):
+    rows = _build_rows(group, score_set, submitted)
     return render(
         request,
         "scoring/score_grid.html",
@@ -118,7 +119,8 @@ def _render_grid(request, group, subject, score_set, submitted=None, errors=(), 
             "group": group,
             "subject": subject,
             "score_set": score_set,
-            "rows": _build_rows(group, score_set, submitted),
+            "rows": rows,
+            "cadet_ids": ",".join(str(row["cadet"].pk) for row in rows),
             "attributes": ATTRIBUTES,
             "score_choices": SCORE_CHOICES,
             "editable": group.is_editable,
@@ -146,6 +148,10 @@ def score_grid(request, number, subject_id):
     data, errors = services.parse_submission(request.POST, cadets)
     for cadet in cadets:
         data[cadet.pk]["raw_comment"] = request.POST.get(f"c-{cadet.pk}", "")
+    # A missing list (no browser form) skips the check; the page always sends one.
+    shown = request.POST.get("cadet_ids")
+    if shown is not None and _id_set(shown) != {cadet.pk for cadet in cadets}:
+        return _render_grid(request, group, subject, score_set, data, warning=ROSTER_CHANGED)
     if errors:
         return _render_grid(request, group, subject, score_set, data, errors)
     blank_cells, blank_cadets, scored_cells = services.count_blanks(data)
@@ -167,9 +173,34 @@ def score_grid(request, number, subject_id):
             request, group, subject, score_set, data, warning=warning, confirm_blanks=blank_cells
         )
     with transaction.atomic():
-        services.save_score_set(request.user, subject, group, data)
-    messages.success(request, "Saved.")
+        # Hold the group row so a lock or roster upload can't land mid-save, then re-check both.
+        locked_group = Group.objects.select_for_update().get(pk=group.pk)
+        current = set(locked_group.cadets.filter(is_active=True).values_list("pk", flat=True))
+        if locked_group.is_editable and current == set(data):
+            services.save_score_set(request.user, subject, locked_group, data)
+            saved = True
+        else:
+            saved = False
+    if saved:
+        messages.success(request, "Saved.")
+    elif not locked_group.is_editable:
+        messages.error(request, f"Not saved: group {group.number} is now {locked_group.status}.")
+    else:
+        messages.error(request, f"Not saved: {ROSTER_CHANGED}")
     return redirect("scoring:score_grid", number=group.number, subject_id=subject.pk)
+
+
+ROSTER_CHANGED = (
+    "The cadet list changed since you opened this page. "
+    "Check the list below and save again."
+)
+
+
+def _id_set(text):
+    try:
+        return {int(part) for part in text.split(",") if part}
+    except ValueError:
+        return None
 
 
 def my_score_sets(request):
@@ -190,11 +221,12 @@ def group_score_sets(request, number):
     )
 
 
-@admin_required
 def score_set_detail(request, pk):
     score_set = get_object_or_404(
         ScoreSet.objects.select_related("group", "subject", "instructor"), pk=pk
     )
+    if not can_view_score_set(request.user, score_set):
+        raise PermissionDenied
     rows = score_set.rows.select_related("cadet").order_by(
         "-cadet__is_active", "cadet__position", "cadet__pk"
     )
@@ -216,6 +248,20 @@ def score_set_detail(request, pk):
 
 def results(request, number):
     group = get_visible_group(request, number)
+    if request.user.is_admin:
+        choices = list(Subject.objects.filter(scoreset__group=group).distinct())
+        subjects = None  # every subject
+    else:
+        # Instructors see combined results only for the subjects they scored in this group.
+        choices = scored_subjects(request.user, group)
+        subjects = choices
+    # Optional ?subject=<id> narrows the results to one of the allowed subjects.
+    selected = next((s for s in choices if str(s.pk) == request.GET.get("subject")), None)
+    if selected is not None:
+        subjects = [selected]
+    score_sets = group.score_sets.all()
+    if subjects is not None:
+        score_sets = score_sets.filter(subject__in=subjects)
     return render(
         request,
         "scoring/results.html",
@@ -223,10 +269,13 @@ def results(request, number):
             "group": group,
             "rows": [
                 (result, [result.averages[field] for field in ATTRIBUTE_FIELDS] if result.averages else None)
-                for result in group_results(group)
+                for result in group_results(group, subjects)
             ],
+            "subjects": subjects,
+            "subject_choices": choices,
+            "selected_subject": selected,
             "attributes": ATTRIBUTES,
-            "score_set_count": group.score_sets.count(),
+            "score_set_count": score_sets.count(),
             "key": [(value, BAND_HEX[value], label) for value, label in SCORE_CHOICES],
         },
     )

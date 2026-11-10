@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -8,7 +8,7 @@ from accounts.decorators import admin_required
 from audit import actions
 from audit.service import log
 
-from scoring.access import get_visible_group
+from scoring.access import get_visible_group, scored_subjects
 from scoring.models import ScoreSet, Subject
 
 from . import lifecycle
@@ -18,9 +18,11 @@ from .services import (
     apply_upload,
     build_preview,
     check_groups,
+    discard_stale_uploads,
+    discard_upload,
     parse_rows,
     preview_key,
-    read_sheet,
+    read_roster,
 )
 
 
@@ -49,6 +51,13 @@ def group_detail(request, number):
             "score_sets": ScoreSet.objects.filter(instructor=request.user, group=group)
             .select_related("subject")
             .order_by("subject__name"),
+            # Colleagues' score sets for subjects this user has also scored in this group.
+            "shared_score_sets": ScoreSet.objects.filter(
+                group=group, subject__in=scored_subjects(request.user, group)
+            )
+            .exclude(instructor=request.user)
+            .select_related("subject", "instructor")
+            .order_by("subject__name", "instructor__username"),
         },
     )
 
@@ -164,6 +173,7 @@ def cadet_delete(request, pk):
 
 @admin_required
 def upload(request):
+    discard_stale_uploads()
     form = UploadForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         record = RosterUpload.objects.create(
@@ -191,13 +201,14 @@ def upload_columns(request, pk):
     upload = get_object_or_404(RosterUpload, pk=pk)
     if closed := _closed_upload(request, upload):
         return closed
-    headers, rows = read_sheet(bytes(upload.file_content))
+    sheet = read_roster(bytes(upload.file_content))
+    headers, rows = sheet.headers, sheet.rows
     form = ColumnForm(headers, request.POST or None)
     errors = []
     if request.method == "POST" and form.is_valid():
         name_col = int(form.cleaned_data["name_col"])
         id_col = int(form.cleaned_data["id_col"]) if form.cleaned_data["id_col"] else None
-        result = parse_rows(rows, upload.group_number, name_col, id_col)
+        result = parse_rows(rows, upload.group_number, name_col, id_col, sheet.first_data_row)
         errors = result.errors or check_groups(list(result.groups), id_col is not None)
         if not errors:
             upload.name_col, upload.id_col = name_col, id_col
@@ -216,6 +227,7 @@ def upload_columns(request, pk):
             "form": form,
             "upload": upload,
             "headers": headers,
+            "header_row": sheet.header_row,
             "sample_rows": rows[:5],
             "errors": errors,
         },
@@ -246,7 +258,10 @@ def upload_preview(request, pk):
             upload = RosterUpload.objects.select_for_update().get(pk=pk)
             if closed := _closed_upload(request, upload):
                 return closed
-            errors = check_groups(list(upload.parsed["groups"]), upload.parsed["id_mode"])
+            numbers = list(upload.parsed["groups"])
+            # Hold the groups so the preview checked below is what gets applied.
+            list(Group.objects.select_for_update().filter(number__in=numbers))
+            errors = check_groups(numbers, upload.parsed["id_mode"])
             changes = build_preview(upload)
             # A missing key (no browser form) skips the check; the page always sends one.
             seen_key = request.POST.get("preview_key")
@@ -256,7 +271,16 @@ def upload_preview(request, pk):
                     "Check the changes below and confirm again."
                 )
             elif not errors:
-                apply_upload(upload, request.user)
+                try:
+                    apply_upload(upload, request.user)
+                except IntegrityError:
+                    # Another upload created the same new group at the same moment.
+                    messages.error(
+                        request,
+                        "Another upload changed this group at the same time. "
+                        "Check the changes and confirm again.",
+                    )
+                    return redirect("roster:upload_preview", pk=upload.pk)
                 messages.success(request, "Roster applied.")
                 return redirect("home")
     else:
@@ -282,15 +306,6 @@ def upload_discard(request, pk):
         upload = get_object_or_404(RosterUpload.objects.select_for_update(), pk=pk)
         if closed := _closed_upload(request, upload):
             return closed
-        upload.status = "discarded"
-        upload.file_content = b""
-        upload.parsed = {}
-        upload.save()
-        log(
-            request.user,
-            actions.ROSTER_DISCARDED,
-            f"Roster '{upload.original_filename}' discarded",
-            details={"upload_id": upload.pk, "filename": upload.original_filename},
-        )
+        discard_upload(upload, request.user)
     messages.success(request, "Upload discarded.")
     return redirect("roster:upload")

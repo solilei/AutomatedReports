@@ -57,6 +57,9 @@ def build_group_report(group, export_date: date) -> Workbook:
     score_sets = list(ScoreSet.objects.filter(group=group).select_related("instructor", "subject"))
 
     wb = Workbook()
+    # openpyxl can't store a formula's result, so ask Excel/LibreOffice to calculate the
+    # Total column on open; without this some viewers show it blank.
+    wb.calculation.fullCalcOnLoad = True
     ws = wb.active
     ws.title = group.number
 
