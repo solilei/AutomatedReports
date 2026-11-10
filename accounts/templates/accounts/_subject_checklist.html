@@ -1,0 +1,9 @@
+{% for programme, items in form.grouped_subjects %}
+<fieldset>
+  <legend>{{ programme.name }}{% if not programme.is_active %} (inactive){% endif %}</legend>
+  {% for subject, checked in items %}
+  <label><input type="checkbox" name="subjects" value="{{ subject.pk }}"{% if checked %} checked{% endif %}> {{ subject.name }}{% if not subject.is_active %} (inactive){% endif %}</label><br>
+  {% endfor %}
+</fieldset>
+{% endfor %}
+{{ form.subjects.errors }}

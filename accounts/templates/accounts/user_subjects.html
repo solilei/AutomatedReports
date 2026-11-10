@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Subjects for {{ account.username }}{% endblock %}
+{% block content %}
+<h1>Subjects for {{ account.display_name }}</h1>
+<form method="post">
+  {% csrf_token %}
+  {% include "accounts/_subject_checklist.html" %}
+  <button type="submit">Save subjects</button>
+</form>
+<p><a href="{% url 'accounts:user_list' %}">Back to accounts</a></p>
+{% endblock %}

@@ -28,3 +28,5 @@ header form{margin:0}
 .peek-wrap{display:flex;gap:.5rem}
 .peek-wrap input{flex:1}
 .signin .peek{font-size:1rem;margin-top:0;padding:.6rem 1rem}
+
+.score-grid select.filled { background: #fff3b0; outline: 2px solid #e0a800; }

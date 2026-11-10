@@ -6,11 +6,19 @@
 <form method="get" action="{% url 'roster:group_go' %}">
   <label for="number">Group</label>
   <select name="number" id="number">
-    {% for group in groups %}<option value="{{ group.number }}">{{ group.number }}{% if group.status == "locked" %} — locked{% endif %}</option>{% endfor %}
+    {% for group in groups %}<option value="{{ group.number }}">{{ group.number }} ({{ group.programme.name }}){% if group.status == "locked" %} — locked{% endif %}</option>{% endfor %}
   </select>
   <button type="submit">Open</button>
 </form>
 {% else %}
 <p>No groups yet.{% if user.is_admin %} <a href="{% url 'roster:upload' %}">Upload a roster</a>.{% endif %}</p>
+{% endif %}
+{% if my_gaps %}
+<h2>Your missing scores</h2>
+<ul>
+  {% for gap in my_gaps %}
+  <li><a href="{% url 'scoring:score_grid' gap.group.number gap.subject.pk %}">{{ gap.group.number }} — {{ gap.subject.name }}</a>: {% if gap.not_scored %}not scored{% else %}{{ gap.cadets|length }} cadet(s) added since last save{% endif %}</li>
+  {% endfor %}
+</ul>
 {% endif %}
 {% endblock %}

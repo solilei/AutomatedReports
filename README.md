@@ -11,8 +11,9 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 ## Features
 
 ### Roles
-- **Admin:** can do everything that an instructor can do. An admin also manages rosters, accounts and subjects. An admin can lock, archive and delete groups, export reports and read the audit log.
-- **Instructor:** can select any group and score it. An instructor sees results only for their own subjects. Instructors cannot export, manage anything or read the audit log.
+- **Admin:** can do everything that an instructor can do. An admin also manages rosters, accounts, programmes and subject assignments. An admin can lock, archive and delete groups, export reports and read the audit log.
+- **Instructor:** can open the groups of a programme where the admin assigned them a subject. An instructor scores only the subjects assigned to them, and sees results only for those subjects. Instructors cannot export, manage anything or read the audit log.
+- **One admin only.** The site has exactly one admin. The command `transferadmin --to <username>` hands the role to another account.
 
 ### Sign-in and accounts
 - **No self-registration.** An admin creates each account. The site shows the admin a one-time temporary password. The site sends no email.
@@ -20,8 +21,8 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 - **New password at first sign-in.** A password must have at least 12 characters. It must not be too common, all numbers or too similar to the username.
 - **Authenticator-app MFA.** At first sign-in, the user scans a QR code. After that, the user types a 6-digit code at each sign-in. You can disable MFA for local tests. MFA is always on when debug mode is off.
 - **Lockout.** 5 wrong passwords or codes in a row lock the account for 15 minutes.
-- **Admin account tools:** approve, promote, demote, deactivate, reactivate and **Reset**. Reset gives a new temporary password, clears the lock and unlinks the authenticator app.
-- **Admin safeguards.** Nobody can demote or deactivate the last remaining admin. An admin cannot deactivate their own account.
+- **Admin account tools:** approve (with the subjects to assign), edit subjects, deactivate, reactivate and **Reset**. Reset gives a new temporary password, clears the lock and unlinks the authenticator app.
+- **Admin safeguards.** An admin cannot deactivate their own account. A web form cannot make an admin.
 - **Automatic sign-out** after 30 minutes without activity, or when the browser closes.
 - **"Sign in with Microsoft"** (Microsoft Entra ID): the program includes it, but it is off.
   - The site accepts only accounts from the organisation's own Microsoft tenant.
@@ -54,12 +55,15 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 - **Permanent delete.** An admin can delete an archived group with all its data. This includes the group's unfinished uploads. It also deletes cadet names, scores and comments from the group's audit entries.
 - **Group numbers.** Each group number is unique. The site never uses a group number again, even after a deletion.
 
-### Subjects (admin)
-- **Fixed list.** Instructors select a subject from a dropdown. They cannot type a subject.
-- **Add, rename, deactivate or reactivate.** Nobody can rename a subject that a locked or archived group uses. A deactivated subject cannot start a new score set. Its existing score sets stay editable.
+### Programmes and subjects (admin)
+- **Programmes.** A programme holds a list of subjects. **ATPL** is built in. It has 13 fixed subjects that nobody can rename or deactivate. The admin can add other programmes with their own subjects.
+- **Groups.** Each group belongs to one programme. The admin picks the programme at upload. ATPL group numbers are `C` followed by digits (for example `C216`). The admin can change the programme of a group until it has score sets.
+- **Assignments.** The admin assigns subjects to each account. An instructor sees a group only if the instructor has a subject in its programme. The admin must also be assigned a subject to score it.
+- **Cadets and subjects.** Each cadet takes every subject of the programme. The admin can take a cadet off a subject (**Manage cadets** → **Subjects**).
+- **Add, rename, deactivate or reactivate** a subject in other programmes. Nobody can rename a subject that a locked or archived group uses. A deactivated subject cannot start a new score set. Its existing score sets stay editable.
 
 ### Scoring (instructors and admins)
-- **Sequence:** select a group, then a subject. Then complete a grid of the group's active cadets.
+- **Sequence:** select a group, then one of your assigned subjects. Then complete a grid of the group's active cadets who take that subject.
 - **Six attributes for each cadet:**
   - Attentiveness / Engagement
   - Motivation / Diligence / Enthusiasm
@@ -78,8 +82,8 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 - **One score set for each instructor, subject and group.** An instructor who teaches two subjects to a group saves one set for each subject.
 - **Save rules:**
   - A save needs at least one score.
-  - The first save fills blank cells with 3.
-  - Later saves keep blank cells. The site shows how many blank cells count as 3. The site saves only after the instructor presses **Save** again.
+  - **Save** fills each blank cell with 3 on the screen and highlights the cells. The site saves nothing yet.
+  - The instructor checks the cells and presses **Confirm and save**. A saved set never has blank cells.
 - **Roster changes during scoring:**
   - The grid marks cadets that an admin added after the instructor's last save: "added since your last save".
   - If the cadet list changes while the page is open, the site saves nothing. The page then shows the current list.
@@ -91,12 +95,16 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 - **Averages** are whole numbers. An average of exactly x.5 rounds up, so 2.5 counts as C.
 - **Grade colours.** The site colours each average cell with the report's grade colour, from green (5) to red (1).
 - **Flag.** The site flags a cadet **Below C – HGS consultation** if an attribute average is below 2.5.
-- **Missing scores:**
-  - A blank cell in a saved set counts as 3.
+- **Missing scores in results:**
   - If a saved set has no row for a cadet, that set counts as 3 for each attribute of the cadet.
   - A cadet with no scores shows "no data".
   - The table does not include inactive cadets.
 - **Who sees what.** Admins see all subjects. Instructors see only the subjects that they scored in that group. Both can show one subject at a time.
+
+### Missing scores
+- **Rule.** Each assigned instructor must save a score set for each active group of the programme. A set is missing when it is not saved, or when a cadet was added after the last save.
+- **Admin:** a **Missing scores (N)** link in the navigation, a page that lists each gap, and a box on each group page. Locking a group with gaps works, with a warning.
+- **Instructor:** the Home page lists the instructor's own missing scores, each with a link to the grid.
 
 ### Export (admin)
 - **One `.xlsx` file for each group.** The file copies the layout of the Cadet Soft Skills Report template:
@@ -112,15 +120,15 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
   - score changes (old value → new value) and comment changes
   - roster uploads, applies and discards, and cadet changes
   - exports
-  - account creation, approval, promotion, deactivation, resets and lockouts
-  - subject changes
+  - account creation, approval, deactivation, resets and lockouts
+  - subject assignments and programme and subject changes
   - group lock, unlock, archive and delete
   - cadet deletion
 - **Filter** by action and by group.
 - **No edits or deletions.** Nobody can edit or delete an entry. One exception: a group deletion also deletes the cadet details in that group's entries.
 
 ### Other
-- **`seed_demo`** loads three fake groups and three subjects for demos.
+- **`seed_demo`** loads three fake ATPL groups, the instructors `alex` and `sam` with assigned subjects, and three score sets for demos.
 - **Time zone.** Times and export dates use UTC+8 by default.
 - **Database.** The program uses SQLite: one file, with no setup. The database code can change to PostgreSQL later.
 - **Local only.** Only this computer can open the site (`127.0.0.1`).
@@ -167,7 +175,7 @@ python manage.py createadmin --username admin --full-name "Demo Admin"
 
 The commands do these tasks:
 - `migrate` makes the database file `db.sqlite3`.
-- `seed_demo` loads the subjects Air Law, Meteorology and Navigation. It also loads three fake groups (C216, C217 and C218, with 44 cadets).
+- `seed_demo` loads three fake ATPL groups (C216, C217 and C218, with 44 cadets). It makes the instructors `alex` and `sam` with their subjects. It saves three score sets for C216. It shows each instructor's **temporary password one time**. Copy both.
 - `createadmin` shows a **temporary password one time**. Copy it. You need it in step 4.
 
 ### 3. Start the server
@@ -190,49 +198,48 @@ Open **http://127.0.0.1:8000**. To stop the server, press `Ctrl+C`. Never start 
 
 **`SHOWCASE_CREDENTIALS.md`** in the project folder contains the usernames and passwords. It is a local file that never goes to GitHub. Copy it with the folder.
 - The admin is `admin`. The instructors are `alex` and `sam`.
-- Each user signs in first with a one-time temporary password. Then the user sets the password from that file.
+- Each user signs in first with a one-time temporary password (from `createadmin` and `seed_demo`). Then the user sets the password from that file.
 
 Use a **normal browser window for the admin**. Use a **private (incognito) window for the instructors**. Then both users can stay signed in at the same time.
 
 ### 5. Demo walkthrough
 
-**A. The admin makes the accounts** (normal window)
+**A. The admin looks at the data** (normal window)
 1. Sign in as `admin` with the temporary password from step 2.
 2. Set the admin password from `SHOWCASE_CREDENTIALS.md`.
-3. Open **Accounts** → **Create local account**.
-4. Create username `alex`, full name `Alex Tan`, role Instructor. The site shows the temporary password **one time**. Write it down.
-5. Do the same for `sam` / `Sam Lee`.
-6. Tell the audience: there is no self-registration. Only an admin can make accounts. The audit log records each action.
+3. Open **Programmes**. ATPL is built in, with 13 fixed subjects.
+4. Open **Accounts**. `alex` and `sam` already have subjects. Press **Subjects** on a row to change them. Tell the audience: there is no self-registration, and an instructor can score only the assigned subjects.
+5. Open **Missing scores (9)** in the navigation. It lists each instructor's unsaved sets. For example, `sam` has not scored C216 General Navigation. C217 and C218 have no scores yet.
 
 **B. The first instructor scores** (private window)
-1. Sign in as `alex` with the temporary password.
+1. Sign in as `alex` with the temporary password from `seed_demo`.
 2. Set Alex's password from `SHOWCASE_CREDENTIALS.md`.
-3. On **Home**, select **C216**. Press **Open**.
-4. Select the subject **Navigation**. Press **Score**.
-5. Give the first cadet (**Hana Tan**) a **2** for *Attire / Appearance*. Enter some other scores in the grid.
-6. Add a comment for one cadet. Press **Save**.
-7. Tell the audience: the first save fills blank cells with 3 (meets standard).
-8. Return to the group page. Select **Air Law** and press **Score**. Enter some scores and press **Save**. Now Alex teaches two subjects to C216.
-9. Open **Results** (a link on the group page). An instructor sees combined results only for the subjects that they scored. The **Subject** dropdown shows one subject at a time.
-10. Press **Sign out**.
+3. On **Home**, select **C216**. Press **Open**. The subject dropdown shows only Alex's subjects: Meteorology and Air Law.
+4. Select **Meteorology**. Press **Score**. The grid already holds the demo scores.
+5. Give the first cadet (**Hana Tan**) a **2** for *Attire / Appearance*. Clear one other cell. Add a comment for one cadet. Press **Save**.
+6. The site fills the blank cell with 3 and highlights it. Nothing is saved yet. Check the cell and press **Confirm and save**.
+7. Open **Results** (a link on the group page). An instructor sees results only for the subjects that they scored. The **Subject** dropdown shows one subject at a time.
+8. Press **Sign out**.
 
 **C. The second instructor scores the same subject** (same private window)
-1. Sign in as `sam` with the temporary password.
+1. Sign in as `sam` with the temporary password from `seed_demo`.
 2. Set Sam's password from `SHOWCASE_CREDENTIALS.md`.
-3. Score **C216** in **Navigation**. Give **Hana Tan** a **1** for *Attire / Appearance*. Press **Save**.
-4. On the group page, find **Colleagues' score sets for your subjects**. Open Alex's Navigation set. Instructors who teach the same subject to a group can see each other's scores.
-5. Open **Results**. Hana Tan's *Attire* average is (2 + 1) / 2 = 1.5. Thus the site flags the row **Below C – HGS consultation**. The site colours each cell by grade.
-6. Return to the scoring page. Clear one cell and press **Save**. The site shows how many blank cells will count as 3. Press **Save** again to save.
+3. **Home** shows **Your missing scores**, including C216 General Navigation. Press that link.
+4. Score **General Navigation** and save. The C216 line disappears from **Home**.
+5. Open **Meteorology** for C216. Give **Hana Tan** a **1** for *Attire / Appearance*. Press **Save**, then **Confirm and save**.
+6. Open **Results**. Hana Tan's *Attire* average for Meteorology is (2 + 1) / 2 = 1.5. Thus the site flags the row **Below C – HGS consultation**. The site colours each cell by grade.
 
 **D. Admin features** (normal window)
-1. Open **Results** for C216. The admin sees all subjects together. The **Subject** dropdown shows one subject at a time.
-2. On the group page, press **Export report**. The browser downloads the filled-in report (`.xlsx`). Open it in Excel or LibreOffice.
-3. Open **Audit log**. It shows each score change (old value → new value), account creation and export, with who and when.
-4. On the group page, press **Lock** for C216. In the private window, Sam reloads the scoring page. The page is now read-only. Then press **Unlock**.
-5. Open **Upload roster**. Select `samples/sample_roster_C217.xlsx`, type the group number **C300** and press **Upload**.
-6. Select **Full Name** as the Name column and **Cadet ID** as the Cadet ID column. Press **Continue**.
-7. Check the preview. Press **Confirm and apply**. C300 is now in the Home dropdown.
-8. Optional: press **Archive** on a group. The group is then not in the dropdowns. You can also open **Subjects** to add or deactivate a subject. You can open **Accounts** to promote, deactivate or reset an account.
+1. Open **Missing scores**. C216 no longer appears. C217 and C218 are still listed.
+2. Open **Results** for C216. The admin sees all subjects together.
+3. On the group page, press **Export report**. The browser downloads the filled-in report (`.xlsx`). Open it in Excel or LibreOffice.
+4. Open **Audit log**. It shows each score change (old value → new value), assignment and export, with who and when.
+5. On the group page, press **Lock** for C216. In the private window, Sam reloads the scoring page. The page is now read-only. Then press **Unlock**.
+6. Open **Manage cadets** → a cadet's **Subjects** link. Take the cadet off one subject. The cadet no longer shows in that subject's grid.
+7. Open **Upload roster**. Select the programme **ATPL**. Select `samples/sample_roster_C217.xlsx`, type the group number **C300** and press **Upload**.
+8. Select **Full Name** as the Name column and **Cadet ID** as the Cadet ID column. Press **Continue**.
+9. Check the preview. Press **Confirm and apply**. C300 is now in the Home dropdown.
+10. Optional: press **Archive** on a group. You can also open **Programmes** to add a programme and its subjects. To hand the admin role to another account, run `python manage.py transferadmin --to <username>`.
 
 ### 6. Optional: show MFA
 
@@ -248,7 +255,7 @@ Use a **normal browser window for the admin**. Use a **private (incognito) windo
 
 1. Stop the server.
 2. Delete `db.sqlite3`. This deletes the demo accounts and scores.
-3. Run `migrate`, `seed_demo` and `createadmin` again (step 2).
+3. Run `migrate`, `seed_demo` and `createadmin` again (step 2). `migrate` makes ATPL and its subjects again.
 4. Continue from step 3.
 
 ### Facts for a demo

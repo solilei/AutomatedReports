@@ -1,3 +1,5 @@
+import re
+
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -6,8 +8,11 @@ from django.db.models import Q
 from scoring.attributes import ATTRIBUTE_FIELDS
 
 
-class Subject(models.Model):
+class Programme(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    # Group numbers must be this prefix followed by digits. Blank means no check.
+    group_prefix = models.CharField(max_length=10, blank=True, default="")
+    is_fixed = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -15,6 +20,44 @@ class Subject(models.Model):
 
     def __str__(self):
         return self.name
+
+    def accepts_number(self, number):
+        if not self.group_prefix:
+            return True
+        return bool(re.fullmatch(re.escape(self.group_prefix) + r"\d+", number, re.IGNORECASE))
+
+
+class Subject(models.Model):
+    name = models.CharField(max_length=100)
+    programme = models.ForeignKey(Programme, on_delete=models.PROTECT, related_name="subjects")
+    instructors = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name="assigned_subjects", blank=True
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["programme__name", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["programme", "name"], name="unique_subject_per_programme")
+        ]
+
+    @property
+    def is_fixed(self):
+        return self.programme.is_fixed
+
+    def __str__(self):
+        return self.name
+
+
+class CadetSubjectExclusion(models.Model):
+    cadet = models.ForeignKey("roster.Cadet", on_delete=models.CASCADE, related_name="exclusions")
+    subject = models.ForeignKey(Subject, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["cadet", "subject"], name="unique_exclusion")
+        ]
 
 
 class ScoreSet(models.Model):

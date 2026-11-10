@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Programmes{% endblock %}
+{% block content %}
+<h1>Programmes</h1>
+<p><a href="{% url 'scoring:programme_create' %}">Add programme</a></p>
+<table>
+  <thead>
+    <tr><th>Name</th><th>Prefix</th><th>Subjects</th><th>Groups</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    {% for programme in programmes %}
+    <tr>
+      <td><a href="{% url 'scoring:programme_detail' programme.pk %}">{{ programme.name }}</a>{% if programme.is_fixed %} <span class="tag">Fixed</span>{% endif %}</td>
+      <td>{{ programme.group_prefix }}</td>
+      <td>{{ programme.active_subjects }}</td>
+      <td>{{ programme.group_count }}</td>
+      <td>{% if programme.is_active %}Active{% else %}Inactive{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

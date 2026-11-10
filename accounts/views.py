@@ -17,7 +17,9 @@ from audit.service import log
 
 from . import mfa, microsoft, services
 from .decorators import admin_required
-from .forms import PasswordSetForm, UserCreateForm
+from scoring.assignments import set_assignments
+
+from .forms import PasswordSetForm, SubjectChecklistForm, UserCreateForm
 from .models import User
 
 MFA_SESSION_KEYS = ("mfa_user_id", "mfa_started", "mfa_attempts", "mfa_next", "mfa_new_secret")
@@ -207,7 +209,7 @@ def _no_store(response):
 
 @admin_required
 def user_list(request):
-    users = User.objects.order_by("is_approved", "username")
+    users = User.objects.order_by("is_approved", "username").prefetch_related("assigned_subjects")
     return render(request, "accounts/user_list.html", {"users": users})
 
 
@@ -216,7 +218,7 @@ def user_create(request):
     form = UserCreateForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         username = form.cleaned_data["username"]
-        role = form.cleaned_data["role"]
+        role = User.Role.INSTRUCTOR
         password = services.generate_temp_password()
         user = User(
             username=username,
@@ -227,13 +229,15 @@ def user_create(request):
             must_change_password=True,
         )
         user.set_password(password)
-        user.save()
-        log(
-            request.user,
-            actions.ACCOUNT_CREATED,
-            f"Account '{username}' created as {role}",
-            details={"username": username, "role": role},
-        )
+        with transaction.atomic():
+            user.save()
+            log(
+                request.user,
+                actions.ACCOUNT_CREATED,
+                f"Account '{username}' created as {role}",
+                details={"username": username, "role": role},
+            )
+            set_assignments(request.user, user, form.cleaned_data["subjects"])
         return _no_store(render(request, "accounts/user_created.html", {"account": user, "password": password}))
     return render(request, "accounts/user_create.html", {"form": form})
 
@@ -256,37 +260,35 @@ def _row_action(request, pk, action, summary, apply):
 
 
 @admin_required
-@require_POST
 def user_approve(request, pk):
-    def apply(target):
-        target.is_approved = True
-        target.save(update_fields=["is_approved"])
-
-    return _row_action(request, pk, actions.ACCOUNT_APPROVED, "Approved {username}", apply)
+    target = get_object_or_404(User, pk=pk)
+    form = SubjectChecklistForm(request.POST if request.method == "POST" else None, user=target)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            target = get_object_or_404(User.objects.select_for_update(), pk=pk)
+            target.is_approved = True
+            target.save(update_fields=["is_approved"])
+            log(
+                request.user,
+                actions.ACCOUNT_APPROVED,
+                f"Approved {target.username}",
+                details={"username": target.username},
+            )
+            set_assignments(request.user, target, form.cleaned_data["subjects"])
+        messages.success(request, f"Approved {target.username}.")
+        return redirect("accounts:user_list")
+    return render(request, "accounts/user_approve.html", {"form": form, "account": target})
 
 
 @admin_required
-@require_POST
-def user_promote(request, pk):
-    def apply(target):
-        if not target.is_approved:
-            return "Approve the account first."
-        target.role = User.Role.ADMIN
-        target.save(update_fields=["role"])
-
-    return _row_action(request, pk, actions.ACCOUNT_PROMOTED, "Promoted {username} to admin", apply)
-
-
-@admin_required
-@require_POST
-def user_demote(request, pk):
-    def apply(target):
-        if services.is_last_admin(target):
-            return "Cannot demote the last remaining admin."
-        target.role = User.Role.INSTRUCTOR
-        target.save(update_fields=["role"])
-
-    return _row_action(request, pk, actions.ACCOUNT_DEMOTED, "Demoted {username} to instructor", apply)
+def user_subjects(request, pk):
+    target = get_object_or_404(User, pk=pk, is_approved=True)
+    form = SubjectChecklistForm(request.POST if request.method == "POST" else None, user=target)
+    if request.method == "POST" and form.is_valid():
+        set_assignments(request.user, target, form.cleaned_data["subjects"])
+        messages.success(request, f"Subjects saved for {target.username}.")
+        return redirect("accounts:user_list")
+    return render(request, "accounts/user_subjects.html", {"form": form, "account": target})
 
 
 @admin_required

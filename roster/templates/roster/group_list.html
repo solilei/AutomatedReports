@@ -5,12 +5,13 @@
 {% if groups %}
 <table>
   <thead>
-    <tr><th>Number</th><th>Status</th><th>Active cadets</th><th>Inactive cadets</th><th>Score sets</th></tr>
+    <tr><th>Number</th><th>Programme</th><th>Status</th><th>Active cadets</th><th>Inactive cadets</th><th>Score sets</th></tr>
   </thead>
   <tbody>
     {% for group in groups %}
     <tr>
       <td><a href="{% url 'roster:group_detail' group.number %}">{{ group.number }}</a></td>
+      <td>{{ group.programme.name }}</td>
       <td>{{ group.get_status_display }}</td>
       <td>{{ group.active_count }}</td>
       <td>{{ group.inactive_count }}</td>

@@ -17,6 +17,10 @@ class Command(BaseCommand):
         parser.add_argument("--full-name", required=True)
 
     def handle(self, *args, **options):
+        if User.objects.filter(role=User.Role.ADMIN).exists():
+            raise CommandError(
+                "An admin already exists. Use transferadmin to hand the role to another account."
+            )
         username = options["username"]
         if User.objects.filter(username=username).exists():
             raise CommandError(f"User '{username}' already exists.")

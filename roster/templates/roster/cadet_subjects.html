@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Subjects for {{ cadet.name }}{% endblock %}
+{% block content %}
+<h1>Subjects for {{ cadet.name }}</h1>
+<p><a href="{% url 'roster:cadet_list' group.number %}">Back to cadets</a></p>
+<p>Group {{ group.number }} ({{ group.programme.name }}). Untick a subject to take the cadet off it. Saved scores stay in the database but stop counting.</p>
+{% if not editable %}<p class="banner">Group is {{ group.status }}; subjects cannot be changed.</p>{% endif %}
+<form method="post">
+  {% csrf_token %}
+  <ul>
+    {% for choice in choices %}
+    <li><label><input type="checkbox" name="taking" value="{{ choice.subject.pk }}"{% if choice.taking %} checked{% endif %}{% if not editable %} disabled{% endif %}> {{ choice.subject.name }}</label></li>
+    {% endfor %}
+  </ul>
+  {% if editable %}<button type="submit">Save</button>{% endif %}
+</form>
+{% endblock %}

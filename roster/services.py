@@ -301,10 +301,15 @@ def apply_upload(upload, actor, actor_label=None):
 
             if change.is_new:
                 group = Group.objects.create(
+                    programme=upload.programme,
                     number=number,
                     identity_mode="id" if id_mode else "name",
                 )
-                event(actions.GROUP_CREATED, f"Group {number} created")
+                event(
+                    actions.GROUP_CREATED,
+                    f"Group {number} created",
+                    programme=upload.programme.name,
+                )
             else:
                 group = Group.objects.get(number=number)
             for kind, cadet, entry, position in steps:

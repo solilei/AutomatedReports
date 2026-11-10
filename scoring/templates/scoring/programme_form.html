@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{% if programme %}Edit programme{% else %}Add programme{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if programme %}Edit programme{% else %}Add programme{% endif %}</h1>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <p>The prefix is the letters that start every group number in this programme (for example C for C216). Leave it blank for no check.</p>
+  <button type="submit">Save</button>
+</form>
+<p><a href="{% if programme %}{% url 'scoring:programme_detail' programme.pk %}{% else %}{% url 'scoring:programme_list' %}{% endif %}">Back</a></p>
+{% endblock %}

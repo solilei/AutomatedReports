@@ -5,7 +5,7 @@
 <p><a href="{% url 'accounts:user_create' %}">Create local account</a></p>
 <table>
   <thead>
-    <tr><th>Username</th><th>Full name</th><th>Role</th><th>Sign-in</th><th>Status</th><th>MFA</th><th>Actions</th></tr>
+    <tr><th>Username</th><th>Full name</th><th>Role</th><th>Sign-in</th><th>Status</th><th>MFA</th><th>Subjects</th><th>Actions</th></tr>
   </thead>
   <tbody>
     {% for account in users %}
@@ -16,14 +16,12 @@
       <td>{{ account.get_auth_source_display }}</td>
       <td>{% if not account.is_approved %}Pending{% elif not account.is_active %}Deactivated{% else %}Active{% endif %}</td>
       <td>{% if account.auth_source == "microsoft" %}n/a{% elif account.totp_confirmed %}Yes{% else %}No{% endif %}</td>
+      <td>{% for subject in account.assigned_subjects.all %}{{ subject.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
       <td>
         {% if not account.is_approved %}
-        <form method="post" action="{% url 'accounts:user_approve' account.pk %}">{% csrf_token %}<button type="submit">Approve</button></form>
-        {% elif not account.is_admin %}
-        <form method="post" action="{% url 'accounts:user_promote' account.pk %}">{% csrf_token %}<button type="submit">Promote</button></form>
-        {% endif %}
-        {% if account.is_admin %}
-        <form method="post" action="{% url 'accounts:user_demote' account.pk %}">{% csrf_token %}<button type="submit">Demote</button></form>
+        <a href="{% url 'accounts:user_approve' account.pk %}">Approve</a>
+        {% else %}
+        <a href="{% url 'accounts:user_subjects' account.pk %}">Subjects</a>
         {% endif %}
         {% if account.is_active and account.pk != user.pk %}
         <form method="post" action="{% url 'accounts:user_deactivate' account.pk %}">{% csrf_token %}<button type="submit">Deactivate</button></form>

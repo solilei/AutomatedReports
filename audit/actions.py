@@ -30,6 +30,16 @@ CADET_DELETED = "cadet.deleted"
 SCORE_CHANGED = "score.changed"
 COMMENT_CHANGED = "comment.changed"
 EXPORT_DOWNLOADED = "export.downloaded"
+PROGRAMME_CREATED = "programme.created"
+PROGRAMME_RENAMED = "programme.renamed"
+PROGRAMME_DEACTIVATED = "programme.deactivated"
+PROGRAMME_REACTIVATED = "programme.reactivated"
+GROUP_PROGRAMME_CHANGED = "group.programme_changed"
+SUBJECT_ASSIGNED = "subject.assigned"
+SUBJECT_UNASSIGNED = "subject.unassigned"
+CADET_SUBJECT_REMOVED = "cadet.subject_removed"
+CADET_SUBJECT_RESTORED = "cadet.subject_restored"
+ACCOUNT_ADMIN_TRANSFERRED = "account.admin_transferred"
 
 ALL_ACTIONS = [
     ACCOUNT_CREATED,
@@ -64,6 +74,16 @@ ALL_ACTIONS = [
     SCORE_CHANGED,
     COMMENT_CHANGED,
     EXPORT_DOWNLOADED,
+    PROGRAMME_CREATED,
+    PROGRAMME_RENAMED,
+    PROGRAMME_DEACTIVATED,
+    PROGRAMME_REACTIVATED,
+    GROUP_PROGRAMME_CHANGED,
+    SUBJECT_ASSIGNED,
+    SUBJECT_UNASSIGNED,
+    CADET_SUBJECT_REMOVED,
+    CADET_SUBJECT_RESTORED,
+    ACCOUNT_ADMIN_TRANSFERRED,
 ]
 
 ACTION_CHOICES = [(a, a) for a in ALL_ACTIONS]

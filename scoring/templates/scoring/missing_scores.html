@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Missing scores{% endblock %}
+{% block content %}
+<h1>Missing scores</h1>
+{% if gaps %}
+<table>
+  <thead><tr><th>Group</th><th>Subject</th><th>Instructor</th><th>What's missing</th></tr></thead>
+  <tbody>
+    {% for gap in gaps %}
+    <tr>
+      <td><a href="{% url 'roster:group_detail' gap.group.number %}">{{ gap.group.number }}</a></td>
+      <td>{{ gap.subject.name }}</td>
+      <td>{{ gap.instructor.display_name }}</td>
+      <td>{% if gap.not_scored %}Not scored{% else %}{{ gap.cadets|length }} cadet(s) added since last save: {% for cadet in gap.cadets %}{{ cadet.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Nothing is missing.</p>
+{% endif %}
+{% endblock %}

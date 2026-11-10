@@ -19,6 +19,9 @@ class Group(models.Model):
     identity_mode = models.CharField(
         max_length=4, choices=[("id", "Cadet ID"), ("name", "Name")]
     )
+    programme = models.ForeignKey(
+        "scoring.Programme", on_delete=models.PROTECT, related_name="groups"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -83,6 +86,7 @@ class RosterUpload(models.Model):
     original_filename = models.CharField(max_length=255)
     file_content = models.BinaryField()
     group_number = models.CharField(max_length=20)
+    programme = models.ForeignKey("scoring.Programme", on_delete=models.PROTECT, null=True)
     status = models.CharField(
         max_length=10,
         choices=[("uploaded",) * 2, ("parsed",) * 2, ("applied",) * 2, ("discarded",) * 2],

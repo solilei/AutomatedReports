@@ -6,6 +6,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.pagebreak import Break
 
 from scoring.attributes import ATTRIBUTES
+from scoring.exclusions import excluded_pairs
 from scoring.models import CadetScore, ScoreSet
 from scoring.results import BAND_HEX, group_results
 
@@ -180,13 +181,14 @@ def build_group_report(group, export_date: date) -> Workbook:
 
 def _comment_lines(group, results):
     cadets = {r.cadet.id: r.cadet.name for r in results}
+    excluded = excluded_pairs(group)
     rows = CadetScore.objects.filter(
         score_set__group=group, cadet_id__in=cadets
     ).select_related("score_set__instructor", "score_set__subject")
     by_cadet = {cadet_id: [] for cadet_id in cadets}
     for row in rows:
         comment = row.comment.strip()
-        if comment:
+        if comment and (row.cadet_id, row.score_set.subject_id) not in excluded:
             by_cadet[row.cadet_id].append(
                 (row.score_set.instructor.display_name, row.score_set.subject.name, comment)
             )

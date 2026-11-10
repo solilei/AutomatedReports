@@ -89,7 +89,11 @@ The command shows a temporary password **one time**. Copy it. At first sign-in, 
 python manage.py seed_demo
 ```
 
-This command adds the subjects Air Law, Meteorology and Navigation. It also adds the three sample rosters (groups C216, C217 and C218, with 44 fake cadets). It runs only on a database with no groups.
+This command adds the three sample rosters to the ATPL programme (groups C216, C217 and C218, with 44 fake cadets). It also makes two instructors, `alex` (Meteorology, Air Law) and `sam` (Meteorology, General Navigation). It saves three score sets for C216. Sam's General Navigation set stays missing on purpose. The command shows each instructor's temporary password **one time**. Copy both. It runs only on a database with no groups.
+
+To start again from an empty database, stop the server, delete `db.sqlite3` and run `python manage.py migrate`. The new database holds the ATPL programme and its 13 subjects.
+
+The site has one admin only. To give the admin role to another account, run `python manage.py transferadmin --to <username>`. The target account must be an active, approved instructor.
 
 ## 8. Start the server
 
@@ -106,8 +110,8 @@ Never start the server with `0.0.0.0` or another address. Other computers on the
 For a full demo with named accounts, use the walkthrough in `README.md` ("Showcase on a new PC"). A short version:
 
 1. Sign in as `admin` with the temporary password. Set your own password. If MFA is on, scan the QR code.
-2. **Instructors:** open *Accounts* → *Create local account* and create an instructor. The site shows the temporary password one time. Give it to the instructor. Alternatively, open a private browser window and sign in as the instructor.
-3. **Scoring:** on *Home*, select a group (for example C216) and press *Open*. Select a subject and press *Score*. Enter scores from 1 to 5 and comments. Press *Save*.
+2. **Instructors:** if you loaded the demo data, sign in as `alex` or `sam` with the temporary password from `seed_demo`. To make a new instructor, open *Accounts* → *Create local account*. The site shows the temporary password one time. An instructor can score a subject only after the admin assigns it (*Accounts* → *Subjects*).
+3. **Scoring:** on *Home*, select a group (for example C216) and press *Open*. Select a subject and press *Score*. Enter scores from 1 to 5 and comments. Press *Save*. The site fills blank cells with 3 and asks you to check them. Press *Confirm and save*.
 4. **Results:** on the group page, open *Results*. It shows the averages, totals, colours and flags.
 5. **Export (admin):** on the group page, press *Export report*. The browser downloads the `.xlsx` file.
 6. **Roster upload (admin):** open *Upload roster*. Select an `.xlsx` file from `samples/` and type a **new** group number (for example `C300`). Press *Upload*. Select the Name column (and the Cadet ID column) and press *Continue*. Check the preview and press *Confirm and apply*.
@@ -192,7 +196,7 @@ Each time an admin opens the upload page, the site discards unfinished roster up
 | The terminal cannot find `python` or `py` | Python is not on PATH. Install Python again with "Add to PATH" selected, or use the full path to `python.exe`. |
 | `No module named django` | The virtual environment is not active. Run the activate command from step 3. |
 | `no such table` | Run `python manage.py migrate`. |
-| `seed_demo` shows `Database already has groups` | The demo data is already in the database. To start again, delete `db.sqlite3`. |
+| `seed_demo` shows `Database already has groups` | The demo data is already in the database. To start again, delete `db.sqlite3` and run `migrate` (section 7). |
 | `That port is already in use` | A different server is running. Stop it, or run `python manage.py runserver 127.0.0.1:8001`. |
 | You lost the temporary admin password | Run `python manage.py changepassword admin` (section 11). |
 | "Too many failed sign-in attempts" | Wait 15 minutes, or ask an admin to press *Reset* on the account (section 11). |

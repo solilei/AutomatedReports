@@ -11,11 +11,11 @@
     {% for cadet in cadets %}
     <tr>
       <td>{{ cadet.position }}</td>
-      <td>{{ cadet.name }}</td>
+      <td>{{ cadet.name }}{% if cadet.not_taking %}<br><small>Not taking: {{ cadet.not_taking }}</small>{% endif %}</td>
       <td>{{ cadet.external_id }}</td>
       <td>{% if cadet.is_active %}Active{% else %}Inactive{% endif %}</td>
       <td>{{ cadet.score_count }}</td>
-      <td><a href="{% url 'roster:cadet_delete' cadet.pk %}">Delete</a></td>
+      <td><a href="{% url 'roster:cadet_subjects' cadet.pk %}">Subjects</a> · <a href="{% url 'roster:cadet_delete' cadet.pk %}">Delete</a></td>
     </tr>
     {% empty %}
     <tr><td colspan="6">No cadets.</td></tr>

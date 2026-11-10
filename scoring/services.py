@@ -1,6 +1,7 @@
 from audit import actions
 from audit.service import log
 
+from .exclusions import cadets_taking
 from .attributes import ATTRIBUTES, ATTRIBUTE_FIELDS
 from .models import CadetScore, ScoreSet
 
@@ -36,7 +37,7 @@ def parse_submission(post, cadets):
         comment = normalise_newlines(post.get(f"c-{cadet.pk}", "")).strip()
         if len(comment) > COMMENT_MAX_LENGTH:
             errors.append(f"Comment for {cadet.name} is longer than {COMMENT_MAX_LENGTH} characters.")
-        data[cadet.pk] = {"scores": scores, "raw": raw, "comment": comment}
+        data[cadet.pk] = {"scores": scores, "raw": raw, "comment": comment, "filled": []}
     return data, errors
 
 
@@ -53,11 +54,13 @@ def count_blanks(data):
 
 def save_score_set(instructor, subject, group, data):
     """Create or update the instructor's score set. Call inside transaction.atomic()."""
+    if any(v is None for entry in data.values() for v in entry["scores"].values()):
+        raise ValueError("A score set cannot be saved with a blank score.")
     score_set, _ = ScoreSet.objects.get_or_create(
         instructor=instructor, subject=subject, group=group
     )
     labels = {field: label for field, label, _header in ATTRIBUTES}
-    for cadet in group.cadets.filter(is_active=True, pk__in=list(data)):
+    for cadet in cadets_taking(group, subject).filter(pk__in=list(data)):
         entry = data[cadet.pk]
         row, _ = CadetScore.objects.get_or_create(score_set=score_set, cadet=cadet)
         for field in ATTRIBUTE_FIELDS:

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ programme.name }}{% endblock %}
+{% block content %}
+<h1>{{ programme.name }}{% if programme.is_fixed %} <span class="tag">Fixed</span>{% endif %}</h1>
+<p>Group number prefix: {{ programme.group_prefix|default:"none" }}. Status: {% if programme.is_active %}Active{% else %}Inactive{% endif %}.</p>
+{% if not programme.is_fixed %}
+<p>
+  <a href="{% url 'scoring:programme_edit' programme.pk %}">Edit programme</a>
+  <form method="post" action="{% url 'scoring:programme_toggle' programme.pk %}">{% csrf_token %}<button type="submit">{% if programme.is_active %}Deactivate programme{% else %}Reactivate programme{% endif %}</button></form>
+  <a href="{% url 'scoring:subject_create' programme.pk %}">Add subject</a>
+</p>
+{% endif %}
+<table>
+  <thead>
+    <tr><th>Name</th><th>Status</th><th>Assigned instructors</th>{% if not programme.is_fixed %}<th>Actions</th>{% endif %}</tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.subject.name }}</td>
+      <td>{% if row.subject.is_active %}Active{% else %}Inactive{% endif %}</td>
+      <td>{{ row.instructors|join:", " }}</td>
+      {% if not programme.is_fixed %}
+      <td>
+        <a href="{% url 'scoring:subject_edit' row.subject.pk %}">Rename</a>
+        <form method="post" action="{% url 'scoring:subject_toggle' row.subject.pk %}">{% csrf_token %}<button type="submit">{% if row.subject.is_active %}Deactivate{% else %}Reactivate{% endif %}</button></form>
+      </td>
+      {% endif %}
+    </tr>
+    {% empty %}
+    <tr><td colspan="4">No subjects yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p><a href="{% url 'scoring:programme_list' %}">Back to programmes</a></p>
+{% endblock %}

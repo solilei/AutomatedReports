@@ -12,7 +12,6 @@
 <form method="post">
   {% csrf_token %}
   <input type="hidden" name="cadet_ids" value="{{ cadet_ids }}">
-  {% if confirm_blanks %}<input type="hidden" name="confirm_blanks" value="{{ confirm_blanks }}">{% endif %}
   <table class="score-grid">
     <thead>
       <tr>
@@ -28,7 +27,7 @@
         <td>{{ row.cadet.name }}{% if row.added %} <span class="added-badge">added since your last save</span>{% endif %}</td>
         {% for cell in row.cells %}
         <td>
-          <select name="{{ cell.name }}"{% if not editable %} disabled{% endif %}>
+          <select name="{{ cell.name }}"{% if cell.filled %} class="filled"{% endif %}{% if not editable %} disabled{% endif %}>
             <option value=""></option>
             {% for value, text in score_choices %}<option value="{{ value }}"{% if cell.value == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
           </select>
@@ -39,6 +38,6 @@
       {% endfor %}
     </tbody>
   </table>
-  {% if editable %}<button type="submit">Save</button>{% endif %}
+  {% if editable %}<button type="submit">{% if fill_notice %}Confirm and save{% else %}Save{% endif %}</button>{% endif %}
 </form>
 {% endblock %}

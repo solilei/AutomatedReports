@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Approve {{ account.username }}{% endblock %}
+{% block content %}
+<h1>Approve {{ account.display_name }}</h1>
+<p>Choose the subjects this person teaches. You can change them later.</p>
+<form method="post">
+  {% csrf_token %}
+  {% include "accounts/_subject_checklist.html" %}
+  <button type="submit">Approve</button>
+</form>
+<p><a href="{% url 'accounts:user_list' %}">Back to accounts</a></p>
+{% endblock %}

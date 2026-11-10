@@ -2,7 +2,7 @@
 {% block title %}Group {{ group.number }}{% endblock %}
 {% block content %}
 <h1>Group {{ group.number }}</h1>
-<p>{{ group.get_status_display }} · {{ active_count }} active cadet{{ active_count|pluralize }}</p>
+<p>{{ group.programme.name }} · {{ group.get_status_display }} · {{ active_count }} active cadet{{ active_count|pluralize }}</p>
 <p><a href="{% url 'scoring:results' group.number %}">Results</a>{% if request.user.is_admin %} · <a href="{% url 'scoring:export' group.number %}">Export report</a>{% endif %}</p>
 {% if subjects %}
 <form method="get" action="{% url 'scoring:score_go' group.number %}">
@@ -13,7 +13,7 @@
   <button type="submit">Score</button>
 </form>
 {% else %}
-<p>No active subjects.</p>
+<p>You have no active subjects in this programme.</p>
 {% endif %}
 <h2>My score sets for this group</h2>
 {% if score_sets %}
@@ -34,7 +34,26 @@
 </ul>
 {% endif %}
 {% if request.user.is_admin %}
+<h2>Missing score sets</h2>
+{% if gaps %}
+<ul>
+  {% for gap in gaps %}
+  <li>{{ gap.subject.name }} — {{ gap.instructor.display_name }}: {% if gap.not_scored %}Not scored{% else %}{{ gap.cadets|length }} cadet(s) added since last save: {% for cadet in gap.cadets %}{{ cadet.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>None.</p>
+{% endif %}
 <h2>Manage group</h2>
+{% if can_change_programme %}
+<form method="post" action="{% url 'roster:group_programme' group.number %}">{% csrf_token %}
+  <label for="programme">Programme</label>
+  <select name="programme" id="programme">
+    {% for programme in programmes %}<option value="{{ programme.pk }}"{% if programme == group.programme %} selected{% endif %}>{{ programme.name }}</option>{% endfor %}
+  </select>
+  <button type="submit">Change programme</button>
+</form>
+{% endif %}
 <p><a href="{% url 'roster:cadet_list' group.number %}">Manage cadets</a> · <a href="{% url 'scoring:group_score_sets' group.number %}">All score sets</a></p>
 {% if group.status == "active" %}
 <form method="post" action="{% url 'roster:group_lock' group.number %}">{% csrf_token %}<button type="submit">Lock</button></form>

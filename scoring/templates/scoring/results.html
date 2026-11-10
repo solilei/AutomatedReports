@@ -3,8 +3,8 @@
 {% block content %}
 <h1>Results for group {{ group.number }}</h1>
 <p><a href="{% url 'roster:group_detail' group.number %}">Back to group</a></p>
-{% if subjects is not None and not subjects %}
-<p>You haven't saved scores for this group yet. Once you have, this page shows the combined results for your subjects.</p>
+{% if no_saved_sets %}
+<p>No saved score sets yet for your subjects in this group.</p>
 {% else %}
 {% if subject_choices|length > 1 %}
 <form method="get">

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
 from roster.models import Cadet
+from scoring.exclusions import excluded_pairs
 from scoring.attributes import ATTRIBUTE_FIELDS, BLANK_COUNTS_AS
 from scoring.models import CadetScore
 
@@ -26,21 +27,22 @@ class CadetResult:
 def group_results(group, subjects=None) -> list[CadetResult]:
     """Results across all saved score sets, or only those for `subjects` when given."""
     cadets = list(Cadet.objects.filter(group=group, is_active=True).order_by("position", "name"))
-    # Every saved score set counts for every cadet with data; a missing row counts as all 3s.
-    # Sets are counted from their rows (inactive cadets included) to keep this to one query.
+    # Every saved score set counts for every cadet who takes its subject; a missing row counts
+    # as all 3s. Sets are counted from their rows (inactive cadets included) to keep this cheap.
+    # A row for a subject the cadet was taken off is kept in the database but ignored here.
     active_ids = {cadet.id for cadet in cadets}
-    set_ids = set()
-    rows = defaultdict(list)
+    excluded = excluded_pairs(group)
+    set_subject = {}
+    rows = defaultdict(list)  # cadet id -> [(set id, values)]
     score_rows = CadetScore.objects.filter(score_set__group=group)
     if subjects is not None:
         score_rows = score_rows.filter(score_set__subject__in=subjects)
-    for set_id, cadet_id, *values in score_rows.values_list(
-        "score_set_id", "cadet_id", *ATTRIBUTE_FIELDS
+    for set_id, subject_id, cadet_id, *values in score_rows.values_list(
+        "score_set_id", "score_set__subject_id", "cadet_id", *ATTRIBUTE_FIELDS
     ):
-        set_ids.add(set_id)
-        if cadet_id in active_ids:
+        set_subject[set_id] = subject_id
+        if cadet_id in active_ids and (cadet_id, subject_id) not in excluded:
             rows[cadet_id].append(values)
-    set_count = len(set_ids)
 
     results = []
     for number, cadet in enumerate(cadets, start=1):
@@ -48,6 +50,7 @@ def group_results(group, subjects=None) -> list[CadetResult]:
         if not cadet_rows:
             results.append(CadetResult(number, cadet, None, None, False))
             continue
+        set_count = sum(1 for s in set_subject.values() if (cadet.id, s) not in excluded)
         missing = set_count - len(cadet_rows)
         averages = {
             field: round_average(

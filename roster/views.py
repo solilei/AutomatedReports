@@ -8,8 +8,9 @@ from accounts.decorators import admin_required
 from audit import actions
 from audit.service import log
 
-from scoring.access import get_visible_group, scored_subjects
-from scoring.models import ScoreSet, Subject
+from scoring.access import assigned_subjects, get_visible_group
+from scoring.completeness import missing_scores
+from scoring.models import CadetSubjectExclusion, Programme, ScoreSet
 
 from . import lifecycle
 from .forms import ColumnForm, UploadForm
@@ -27,8 +28,16 @@ from .services import (
 
 
 def home(request):
-    groups = Group.objects.filter(status__in=[Group.Status.ACTIVE, Group.Status.LOCKED])
-    return render(request, "roster/home.html", {"groups": groups})
+    groups = Group.objects.filter(
+        status__in=[Group.Status.ACTIVE, Group.Status.LOCKED]
+    ).select_related("programme")
+    if not request.user.is_admin:
+        groups = groups.filter(programme__subjects__instructors=request.user).distinct()
+    return render(
+        request,
+        "roster/home.html",
+        {"groups": groups, "my_gaps": missing_scores(instructor=request.user)},
+    )
 
 
 def group_go(request):
@@ -41,19 +50,26 @@ def group_go(request):
 
 def group_detail(request, number):
     group = get_visible_group(request, number)
+    has_score_sets = group.score_sets.exists()
+    gaps = missing_scores(groups=[group]) if request.user.is_admin else []
     return render(
         request,
         "roster/group_detail.html",
         {
             "group": group,
+            "gaps": gaps,
             "active_count": group.cadets.filter(is_active=True).count(),
-            "subjects": Subject.objects.filter(is_active=True),
+            "can_change_programme": request.user.is_admin
+            and group.is_editable
+            and not has_score_sets,
+            "programmes": Programme.objects.filter(is_active=True),
+            "subjects": assigned_subjects(request.user, group.programme, active_only=True),
             "score_sets": ScoreSet.objects.filter(instructor=request.user, group=group)
             .select_related("subject")
             .order_by("subject__name"),
-            # Colleagues' score sets for subjects this user has also scored in this group.
+            # Colleagues' score sets for the subjects assigned to this user.
             "shared_score_sets": ScoreSet.objects.filter(
-                group=group, subject__in=scored_subjects(request.user, group)
+                group=group, subject__in=assigned_subjects(request.user, group.programme)
             )
             .exclude(instructor=request.user)
             .select_related("subject", "instructor")
@@ -68,15 +84,55 @@ def group_list(request):
         active_count=Count("cadets", filter=Q(cadets__is_active=True), distinct=True),
         inactive_count=Count("cadets", filter=Q(cadets__is_active=False), distinct=True),
         score_set_count=Count("score_sets", distinct=True),
-    )
+    ).select_related("programme")
     return render(request, "roster/group_list.html", {"groups": groups})
+
+
+@admin_required
+@require_POST
+def group_programme(request, number):
+    group = get_object_or_404(Group.objects.select_related("programme"), number=number)
+    programme = Programme.objects.filter(
+        is_active=True, pk=request.POST.get("programme") or None
+    ).first()
+    error = None
+    if not group.is_editable:
+        error = f"Group is {group.status}; the programme cannot be changed."
+    elif group.score_sets.exists():
+        error = "The programme cannot be changed after the group has score sets."
+    elif programme is None:
+        error = "Choose a programme."
+    elif not programme.accepts_number(group.number):
+        error = (
+            f"{programme.name} group numbers are {programme.group_prefix} followed by digits."
+        )
+    if error:
+        messages.error(request, error)
+    elif programme != group.programme:
+        old = group.programme.name
+        with transaction.atomic():
+            group.programme = programme
+            group.save(update_fields=["programme"])
+            log(
+                request.user,
+                actions.GROUP_PROGRAMME_CHANGED,
+                f"{request.user.username} changed group {group.number} from {old} "
+                f"to {programme.name}",
+                group_number=group.number,
+                details={"old": old, "new": programme.name},
+            )
+        messages.success(request, f"Group {group.number} is now in {programme.name}.")
+    return redirect("roster:group_detail", number=group.number)
 
 
 def _lifecycle_action(request, number, action):
     group = get_object_or_404(Group, number=number)
+    gap_count = len(missing_scores(groups=[group])) if action == "lock" else 0
     error = lifecycle.change_status(group, action, request.user)
     if error:
         messages.error(request, error)
+    elif gap_count:
+        messages.warning(request, f"Locked with {gap_count} missing score set(s).")
     return redirect("roster:group_detail", number=group.number)
 
 
@@ -136,8 +192,60 @@ def group_delete(request, number):
 @admin_required
 def cadet_list(request, number):
     group = get_object_or_404(Group, number=number)
-    cadets = group.cadets.annotate(score_count=Count("scores"))
+    cadets = list(group.cadets.annotate(score_count=Count("scores")))
+    not_taking = {}
+    for cadet_id, subject_name in CadetSubjectExclusion.objects.filter(
+        cadet__group=group
+    ).order_by("subject__name").values_list("cadet_id", "subject__name"):
+        not_taking.setdefault(cadet_id, []).append(subject_name)
+    for cadet in cadets:
+        cadet.not_taking = ", ".join(not_taking.get(cadet.pk, []))
     return render(request, "roster/cadet_list.html", {"group": group, "cadets": cadets})
+
+
+@admin_required
+def cadet_subjects(request, pk):
+    cadet = get_object_or_404(Cadet.objects.select_related("group__programme"), pk=pk)
+    group = cadet.group
+    subjects = list(group.programme.subjects.order_by("name"))
+    removed = set(cadet.exclusions.values_list("subject_id", flat=True))
+    if request.method == "POST":
+        if not group.is_editable:
+            messages.error(request, f"Group is {group.status}; subjects cannot be changed.")
+            return redirect("roster:cadet_list", number=group.number)
+        taking = {int(v) for v in request.POST.getlist("taking") if v.isdigit()}
+        with transaction.atomic():
+            for subject in subjects:
+                if subject.pk in taking and subject.pk in removed:
+                    cadet.exclusions.filter(subject=subject).delete()
+                    action, verb = actions.CADET_SUBJECT_RESTORED, "put"
+                    where = "back on"
+                elif subject.pk not in taking and subject.pk not in removed:
+                    CadetSubjectExclusion.objects.create(cadet=cadet, subject=subject)
+                    action, verb = actions.CADET_SUBJECT_REMOVED, "took"
+                    where = "off"
+                else:
+                    continue
+                log(
+                    request.user,
+                    action,
+                    f"{request.user.username} {verb} {cadet.name} {where} {subject.name} "
+                    f"in group {group.number}",
+                    group_number=group.number,
+                    details={"cadet_id": cadet.pk, "cadet": cadet.name, "subject": subject.name},
+                )
+        messages.success(request, f"Subjects saved for {cadet.name}.")
+        return redirect("roster:cadet_list", number=group.number)
+    return render(
+        request,
+        "roster/cadet_subjects.html",
+        {
+            "cadet": cadet,
+            "group": group,
+            "editable": group.is_editable,
+            "choices": [{"subject": s, "taking": s.pk not in removed} for s in subjects],
+        },
+    )
 
 
 @admin_required
@@ -181,6 +289,7 @@ def upload(request):
             original_filename=form.cleaned_data["file"].name,
             file_content=form.content,
             group_number=form.cleaned_data["group_number"],
+            programme=form.cleaned_data["programme"],
         )
         log(
             request.user,

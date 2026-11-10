@@ -13,6 +13,8 @@ CADET_DATA_ACTIONS = [
     actions.CADET_DELETED,
     actions.SCORE_CHANGED,
     actions.COMMENT_CHANGED,
+    actions.CADET_SUBJECT_REMOVED,
+    actions.CADET_SUBJECT_RESTORED,
 ]
 
 
