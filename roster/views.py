@@ -318,7 +318,9 @@ def upload_columns(request, pk):
         name_col = int(form.cleaned_data["name_col"])
         id_col = int(form.cleaned_data["id_col"]) if form.cleaned_data["id_col"] else None
         result = parse_rows(rows, upload.group_number, name_col, id_col, sheet.first_data_row)
-        errors = result.errors or check_groups(list(result.groups), id_col is not None)
+        errors = result.errors or check_groups(
+            list(result.groups), id_col is not None, programme=upload.programme
+        )
         if not errors:
             upload.name_col, upload.id_col = name_col, id_col
             upload.parsed = {"id_mode": id_col is not None, "groups": result.groups}
@@ -370,7 +372,7 @@ def upload_preview(request, pk):
             numbers = list(upload.parsed["groups"])
             # Hold the groups so the preview checked below is what gets applied.
             list(Group.objects.select_for_update().filter(number__in=numbers))
-            errors = check_groups(numbers, upload.parsed["id_mode"])
+            errors = check_groups(numbers, upload.parsed["id_mode"], programme=upload.programme)
             changes = build_preview(upload)
             # A missing key (no browser form) skips the check; the page always sends one.
             seen_key = request.POST.get("preview_key")
@@ -393,7 +395,9 @@ def upload_preview(request, pk):
                 messages.success(request, "Roster applied.")
                 return redirect("home")
     else:
-        errors = check_groups(list(upload.parsed["groups"]), upload.parsed["id_mode"])
+        errors = check_groups(
+            list(upload.parsed["groups"]), upload.parsed["id_mode"], programme=upload.programme
+        )
         changes = build_preview(upload)
     return render(
         request,

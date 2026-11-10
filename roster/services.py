@@ -151,10 +151,20 @@ def parse_rows(rows, group_number, name_col, id_col=None, first_row=2):
     return result
 
 
-def check_groups(group_numbers, id_mode):
+def check_groups(group_numbers, id_mode, *, programme):
+    """Errors that stop an upload being applied. `programme` is the one chosen at upload;
+    it is checked again here because groups and programmes can change before confirming."""
+    from scoring.models import Programme
+
     from .models import DeletedGroupNumber, Group
 
-    existing = {g.number: g for g in Group.objects.filter(number__in=group_numbers)}
+    if programme is not None:
+        # Re-read: the upload holds a copy from when it was made.
+        programme = Programme.objects.filter(pk=programme.pk).first()
+    existing = {
+        g.number: g
+        for g in Group.objects.filter(number__in=group_numbers).select_related("programme")
+    }
     deleted = set(
         DeletedGroupNumber.objects.filter(number__in=group_numbers).values_list(
             "number", flat=True
@@ -178,8 +188,29 @@ def check_groups(group_numbers, id_mode):
                     f"Group {number} was first uploaded without a Cadet ID column; "
                     "set Cadet ID to — none —."
                 )
+            elif programme is None or group.programme_id != programme.pk:
+                errors.append(
+                    f"Group {number} belongs to {group.programme.name}, not the programme "
+                    "chosen for this upload. Discard this upload and upload the file again "
+                    f"with {group.programme.name}."
+                )
         elif number in deleted:
             errors.append(f"Group {number} was deleted and its number cannot be reused.")
+        elif programme is None:
+            errors.append(
+                f"No programme was chosen for new group {number}. "
+                "Discard this upload and upload the file again."
+            )
+        elif not programme.is_active:
+            errors.append(
+                f"Programme {programme.name} was deactivated, so it cannot get the new group "
+                f"{number}. Reactivate it, or discard this upload and choose another programme."
+            )
+        elif not programme.accepts_number(number):
+            errors.append(
+                f"{programme.name} group numbers are now {programme.group_prefix} followed by "
+                f"digits, so {number} does not fit. Discard this upload and use another number."
+            )
     return errors
 
 
