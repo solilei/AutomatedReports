@@ -20,10 +20,19 @@ if not SECRET_KEY:
     else:
         raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is off")
 
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "[::1]"}
 if os.environ.get("DJANGO_ALLOWED_HOSTS"):
-    ALLOWED_HOSTS = [h.strip() for h in os.environ["DJANGO_ALLOWED_HOSTS"].split(",")]
+    ALLOWED_HOSTS = [h.strip() for h in os.environ["DJANGO_ALLOWED_HOSTS"].split(",") if h.strip()]
 else:
     ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+
+# Debug mode is for this computer only. Any other host means a real server, which must
+# run with debug off (and so with MFA, HTTPS and a real secret key, below).
+if DEBUG and not set(ALLOWED_HOSTS) <= LOCAL_HOSTS:
+    raise ImproperlyConfigured(
+        "DJANGO_ALLOWED_HOSTS names a host other than 127.0.0.1 or localhost, so this is a "
+        "real server: set DJANGO_DEBUG=false and DJANGO_SECRET_KEY."
+    )
 
 INSTALLED_APPS = [
     "django.contrib.auth",

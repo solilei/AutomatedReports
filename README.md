@@ -43,6 +43,7 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
   - lists new cadets, cadets that are no longer in the file, returning cadets and renamed cadets
   - flags names that look like one name with a spelling change
   - shows the updated preview, and applies nothing, if the roster changed after the site showed the first preview
+  - applies nothing if the programme no longer fits when the admin confirms. For example, the group now belongs to another programme, or the programme was deactivated. Discard the upload and upload the file again.
 - **Discard.** An admin can discard an upload. This deletes the stored file. The site discards uploads that stay unfinished for 24 hours.
 - **No silent deletion.** If a new file does not include a cadet, the site marks that cadet inactive. The site hides an inactive cadet but keeps the data. Only an admin can permanently delete a cadet.
 
@@ -285,9 +286,9 @@ All settings are environment variables. The default values suit a local proof of
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `DJANGO_DEBUG` | `True` | Debug mode. Accepts `1`, `true`, `yes` or `on`. When debug mode is off, you must set `DJANGO_SECRET_KEY`. Also, the site then keeps MFA on and ignores `MFA_REQUIRED`. |
+| `DJANGO_DEBUG` | `True` | Debug mode. Accepts `1`, `true`, `yes` or `on`. Debug mode works only with the local hosts `127.0.0.1` and `localhost`. When debug mode is off, you must set `DJANGO_SECRET_KEY`. Also, the site then keeps MFA on, ignores `MFA_REQUIRED` and accepts HTTPS only. |
 | `DJANGO_SECRET_KEY` | an insecure development key (debug mode only) | The Django secret key. |
-| `DJANGO_ALLOWED_HOSTS` | `127.0.0.1,localhost` | The host names that the app serves, with commas between them. |
+| `DJANGO_ALLOWED_HOSTS` | `127.0.0.1,localhost` | The host names that the app serves, with commas between them. If this list has any other host, the site is a real server: the app does not start until `DJANGO_DEBUG` is off. |
 | `DJANGO_TIME_ZONE` | `Etc/GMT-8` (UTC+8) | The time zone for times on the pages, in the audit log and on the export date. |
 | `DB_ENGINE` | `sqlite` | `sqlite` or `postgresql`. PostgreSQL also needs a driver. The project does not install it yet. |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` | none | The PostgreSQL connection. |
