@@ -9,10 +9,10 @@
   <li><span class="band-{{ value }}" style="background:#{{ hex }}">&nbsp;&nbsp;&nbsp;</span> {{ label }}</li>
   {% endfor %}
 </ul>
-<table>
+<table class="results-table">
   <thead>
     <tr>
-      <th>No.</th><th>Name</th>
+      <th class="col-no">No.</th><th class="col-name">Name</th>
       {% for _field, label, _header in attributes %}<th>{{ label }}</th>{% endfor %}
       <th>Total</th>
     </tr>

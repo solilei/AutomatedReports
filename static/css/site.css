@@ -9,6 +9,12 @@ th,td{border:1px solid #999;padding:.25rem .5rem;text-align:left}
 .messages li.warning{color:#a60}
 .band-5{background:#66FF33}.band-4{background:#C6E0B4}.band-3{background:#E2EFDA}.band-2{background:#FFC000}.band-1{background:#FF0000}
 .flag{color:#b00;font-weight:bold}
+.results-table{width:100%;max-width:72rem;table-layout:fixed}
+.results-table th{font-size:.85em;vertical-align:bottom;overflow-wrap:anywhere;hyphens:auto}
+.results-table td{overflow-wrap:anywhere;text-align:center}
+.results-table td:nth-child(2){text-align:left}
+.results-table .col-no{width:3rem}
+.results-table .col-name{width:22%}
 .added-badge{background:#ffe08a;padding:0 .3rem;font-size:.8em}
 header nav{display:flex;gap:2rem;margin-left:2rem;flex:1}
 header form{margin:0}
