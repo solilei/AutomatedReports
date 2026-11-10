@@ -219,3 +219,15 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 .env
+
+# Kept on this machine only, never pushed: Claude working docs, guides and tests.
+# GitHub gets just the program and the sample rosters.
+CLAUDE.md
+HANDOFF.md
+PLAN.md
+REQUIREMENTS.md
+report.md
+README.md
+docs/
+.claude/
+*/tests/
