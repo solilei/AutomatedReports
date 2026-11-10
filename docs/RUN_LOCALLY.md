@@ -111,12 +111,13 @@ For a full demo with named accounts, use the walkthrough in `README.md` ("Showca
 
 1. Sign in as `admin` with the temporary password. Set your own password. If MFA is on, scan the QR code.
 2. **Instructors:** if you loaded the demo data, sign in as `alex` or `sam` with the temporary password from `seed_demo`. To make a new instructor, open *Accounts* → *Create local account*. The site shows the temporary password one time. An instructor can score a subject only after the admin assigns it (*Accounts* → *Subjects*).
-3. **Scoring:** on *Home*, select a group (for example C216) and press *Open*. Select a subject and press *Score*. Enter scores from 1 to 5 and comments. Press *Save*. The site fills blank cells with 3 and asks you to check them. Press *Confirm and save*.
-4. **Results:** on the group page, open *Results*. It shows the averages, totals, colours and flags.
+3. **Scoring:** on *Home*, select a group (for example C216) and press *Open*. Select a subject and press *Score*. Enter scores from 1 to 5 and comments. Press *Save*. The site fills blank cells with 3 and asks you to check them. Press *Confirm and save*. If the group was locked, or its cadet list changed, while the page was open, the site saves nothing. The page tells you why and keeps what you entered.
+4. **Results:** on the group page, open *Results*. It shows the averages, totals, colours and flags. If a saved set has no row for a cadet (for example, a cadet added after the save), that set counts as 3. A cadet shows "no data" only when no saved set covers a subject that the cadet takes.
 5. **Export (admin):** on the group page, press *Export report*. The browser downloads the `.xlsx` file.
 6. **Roster upload (admin):** open *Upload roster*. Select an `.xlsx` file from `samples/` and type a **new** group number (for example `C300`). Press *Upload*. Select the Name column (and the Cadet ID column) and press *Continue*. Check the preview and press *Confirm and apply*.
 7. **Locking and archiving (admin):** use the *Lock* and *Archive* buttons on the group page. A locked group is read-only for everyone.
-8. **Audit log (admin):** the audit log lists each of the changes above.
+8. **Programmes (admin):** open *Programmes* to add a programme, its subjects and an optional group-number prefix. You can change the prefix only while the programme has no groups.
+9. **Audit log (admin):** the audit log lists each of the changes above.
 
 ## 10. Run the tests
 
@@ -155,16 +156,21 @@ python manage.py changepassword admin
 The command asks for the new password two times. Then sign in with the new password. The authenticator app stays linked. If the account is locked, wait 15 minutes.
 
 ### The only admin lost their authenticator app
-`changepassword` does not unlink the authenticator app. Do these steps instead:
-1. Make a second admin:
+`changepassword` does not unlink the authenticator app. `createadmin` cannot help either, because it does not work when an admin already exists. Hand the admin role to another account for a short time:
+1. Give the admin role to an active, approved instructor, for example `alex`. The old admin becomes an instructor.
 
    ```bash
-   python manage.py createadmin --username admin2 --full-name "Backup Admin"
+   python manage.py transferadmin --to alex
    ```
-2. Sign in as the second admin.
-3. Press **Reset** on the first admin's row in **Accounts**.
+2. Sign in as `alex`. Press **Reset** on the old admin's row in **Accounts**. Copy the temporary password.
+3. Give the admin role back:
 
-For local tests, you can also disable MFA for the session (`MFA_REQUIRED=false`, section 5).
+   ```bash
+   python manage.py transferadmin --to admin
+   ```
+4. Sign in as `admin` with the temporary password. Set a new password and scan the new QR code.
+
+The audit log records each hand-over and the reset. For local tests, you can also disable MFA for the session (`MFA_REQUIRED=false`, section 5).
 
 ### Test data only
 If the data is fake and you do not need it, delete `db.sqlite3` and start again (section 12).

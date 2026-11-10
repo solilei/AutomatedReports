@@ -12,6 +12,15 @@ class ProgrammeForm(forms.ModelForm):
         model = Programme
         fields = ["name", "group_prefix"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Existing group numbers were checked against the prefix, so it is fixed once
+        # the programme has a group. A disabled field ignores any posted value.
+        if self.instance.pk and self.instance.groups.exists():
+            field = self.fields["group_prefix"]
+            field.disabled = True
+            field.help_text = "Locked: this programme already has groups."
+
     def clean_name(self):
         name = self.cleaned_data["name"].strip()
         if Programme.objects.filter(name__iexact=name).exclude(pk=self.instance.pk).exists():

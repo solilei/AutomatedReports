@@ -17,7 +17,7 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 
 ### Sign-in and accounts
 - **No self-registration.** An admin creates each account. The site shows the admin a one-time temporary password. The site sends no email.
-- **First admin.** Create the first admin from the command line on the PC (`createadmin`). The website never lets a user become an admin without an existing admin.
+- **First admin.** Create the first admin from the command line on the PC (`createadmin`). The command does not work when an admin already exists. The website has no way to make an admin.
 - **New password at first sign-in.** A password must have at least 12 characters. It must not be too common, all numbers or too similar to the username.
 - **Authenticator-app MFA.** At first sign-in, the user scans a QR code. After that, the user types a 6-digit code at each sign-in. You can disable MFA for local tests. MFA is always on when debug mode is off.
 - **Lockout.** 5 wrong passwords or codes in a row lock the account for 15 minutes.
@@ -57,6 +57,7 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 
 ### Programmes and subjects (admin)
 - **Programmes.** A programme holds a list of subjects. **ATPL** is built in. It has 13 fixed subjects that nobody can rename or deactivate. The admin can add other programmes with their own subjects.
+- **Group-number prefix.** A programme can have a prefix, for example `C` for ATPL. Each group number in the programme is then the prefix followed by digits. The admin can change the prefix only while the programme has no groups.
 - **Groups.** Each group belongs to one programme. The admin picks the programme at upload. ATPL group numbers are `C` followed by digits (for example `C216`). The admin can change the programme of a group until it has score sets.
 - **Assignments.** The admin assigns subjects to each account. An instructor sees a group only if the instructor has a subject in its programme. The admin must also be assigned a subject to score it.
 - **Cadets and subjects.** Each cadet takes every subject of the programme. The admin can take a cadet off a subject (**Manage cadets** → **Subjects**).
@@ -86,7 +87,8 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
   - The instructor checks the cells and presses **Confirm and save**. A saved set never has blank cells.
 - **Roster changes during scoring:**
   - The grid marks cadets that an admin added after the instructor's last save: "added since your last save".
-  - If the cadet list changes while the page is open, the site saves nothing. The page then shows the current list.
+  - If the cadet list changes while the page is open, the site saves nothing. The page then shows the current list and keeps the scores and comments that you entered.
+  - If an admin locks the group while the page is open, the site saves nothing. The page shows "Not saved: group … is locked" and keeps what you entered.
 - **My score sets** lists the score sets of the user who is signed in.
 - **Shared subjects.** Two instructors can score the same subject for a group. Each of them can then see the other's score set for that subject, with scores and comments. Admins can see all score sets.
 
@@ -96,10 +98,10 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 - **Grade colours.** The site colours each average cell with the report's grade colour, from green (5) to red (1).
 - **Flag.** The site flags a cadet **Below C – HGS consultation** if an attribute average is below 2.5.
 - **Missing scores in results:**
-  - If a saved set has no row for a cadet, that set counts as 3 for each attribute of the cadet.
-  - A cadet with no scores shows "no data".
+  - If a saved set has no row for a cadet, that set counts as 3 for each attribute of the cadet. For example, a cadet added after all saves shows 3 for each attribute.
+  - A cadet shows "no data" only when no saved set covers a subject that the cadet takes.
   - The table does not include inactive cadets.
-- **Who sees what.** Admins see all subjects. Instructors see only the subjects that they scored in that group. Both can show one subject at a time.
+- **Who sees what.** Admins see all subjects. Instructors see only the subjects assigned to them, with the score sets of all instructors of those subjects. Both can show one subject at a time.
 
 ### Missing scores
 - **Rule.** Each assigned instructor must save a score set for each active group of the programme. A set is missing when it is not saved, or when a cadet was added after the last save.
@@ -218,7 +220,7 @@ Use a **normal browser window for the admin**. Use a **private (incognito) windo
 4. Select **Meteorology**. Press **Score**. The grid already holds the demo scores.
 5. Give the first cadet (**Hana Tan**) a **2** for *Attire / Appearance*. Clear one other cell. Add a comment for one cadet. Press **Save**.
 6. The site fills the blank cell with 3 and highlights it. Nothing is saved yet. Check the cell and press **Confirm and save**.
-7. Open **Results** (a link on the group page). An instructor sees results only for the subjects that they scored. The **Subject** dropdown shows one subject at a time.
+7. Open **Results** (a link on the group page). An instructor sees results only for the subjects assigned to them. The **Subject** dropdown shows one subject at a time.
 8. Press **Sign out**.
 
 **C. The second instructor scores the same subject** (same private window)
@@ -235,7 +237,7 @@ Use a **normal browser window for the admin**. Use a **private (incognito) windo
 2. Open **Results** for C216. The admin sees all subjects together.
 3. On the group page, press **Export report**. The browser downloads the filled-in report (`.xlsx`). Open it in Excel or LibreOffice.
 4. Open **Audit log**. It shows each score change (old value → new value), assignment and export, with who and when.
-5. On the group page, press **Lock** for C216. In the private window, Sam reloads the scoring page. The page is now read-only. Then press **Unlock**.
+5. In the private window, Sam opens a C216 scoring page and changes a score, but does not save. In the normal window, press **Lock** for C216 on the group page. Sam now presses **Save**. The site saves nothing and shows "Not saved: group C216 is locked". Sam's change stays on the screen. Then press **Unlock**.
 6. Open **Manage cadets** → a cadet's **Subjects** link. Take the cadet off one subject. The cadet no longer shows in that subject's grid.
 7. Open **Upload roster**. Select the programme **ATPL**. Select `samples/sample_roster_C217.xlsx`, type the group number **C300** and press **Upload**.
 8. Select **Full Name** as the Name column and **Cadet ID** as the Cadet ID column. Press **Continue**.

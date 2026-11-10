@@ -262,12 +262,12 @@ def score_grid(request, number, subject_id):
         return redirect("roster:group_detail", number=group.number)
     if request.method != "POST":
         return _render_grid(request, group, subject, score_set)
-    if not group.is_editable:
-        raise PermissionDenied
     cadets = list(cadets_taking(group, subject))
     data, errors = services.parse_submission(request.POST, cadets)
     for cadet in cadets:
         data[cadet.pk]["raw_comment"] = request.POST.get(f"c-{cadet.pk}", "")
+    if not group.is_editable:
+        return _render_grid(request, group, subject, score_set, data, [_not_editable(group)])
     # A missing list (no browser form) skips the check; the page always sends one.
     shown = request.POST.get("cadet_ids")
     if shown is not None and _id_set(shown) != {cadet.pk for cadet in cadets}:
@@ -303,11 +303,17 @@ def score_grid(request, number, subject_id):
             saved = False
     if saved:
         messages.success(request, "Saved.")
-    elif not locked_group.is_editable:
-        messages.error(request, f"Not saved: group {group.number} is now {locked_group.status}.")
-    else:
-        messages.error(request, f"Not saved: {ROSTER_CHANGED}")
-    return redirect("scoring:score_grid", number=group.number, subject_id=subject.pk)
+        return redirect("scoring:score_grid", number=group.number, subject_id=subject.pk)
+    # Not saved: show the page again with what the user entered.
+    if not locked_group.is_editable:
+        return _render_grid(
+            request, locked_group, subject, score_set, data, [_not_editable(locked_group)]
+        )
+    return _render_grid(request, locked_group, subject, score_set, data, warning=ROSTER_CHANGED)
+
+
+def _not_editable(group):
+    return f"Not saved: group {group.number} is {group.status}."
 
 
 ROSTER_CHANGED = (
