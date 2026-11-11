@@ -38,7 +38,7 @@
 {% if gaps %}
 <ul>
   {% for gap in gaps %}
-  <li>{{ gap.subject.name }} — {{ gap.instructor.display_name }}: {% if gap.not_scored %}Not scored{% else %}{{ gap.cadets|length }} cadet(s) added since last save: {% for cadet in gap.cadets %}{{ cadet.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</li>
+  <li>{{ gap.subject.name }} — {% for user in gap.instructors %}{{ user.display_name }}{% if not forloop.last %}, {% endif %}{% endfor %}: {% if gap.not_scored %}Not scored{% else %}{{ gap.cadets|length }} cadet(s) added since last save: {% for cadet in gap.cadets %}{{ cadet.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</li>
   {% endfor %}
 </ul>
 {% else %}

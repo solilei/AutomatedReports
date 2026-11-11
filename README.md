@@ -105,7 +105,7 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 - **Who sees what.** Admins see all subjects. Instructors see only the subjects assigned to them, with the score sets of all instructors of those subjects. Both can show one subject at a time.
 
 ### Missing scores
-- **Rule.** Each assigned instructor must save a score set for each active group of the programme. A set is missing when it is not saved, or when a cadet was added after the last save.
+- **Rule.** Each active subject must be scored in each active group of its programme. When several instructors teach a subject, a save by any one of them clears the gap; the others may still add their own scores, and results average them. A subject is missing when no assigned instructor has saved it, or when a cadet was added after the last save and no set has a row for that cadet.
 - **Admin:** a **Missing scores (N)** link in the navigation, a page that lists each gap, and a box on each group page. Locking a group with gaps works, with a warning.
 - **Instructor:** the Home page lists the instructor's own missing scores, each with a link to the grid.
 
@@ -212,7 +212,7 @@ Use a **normal browser window for the admin**. Use a **private (incognito) windo
 2. Set the admin password from `SHOWCASE_CREDENTIALS.md`.
 3. Open **Programmes**. ATPL is built in, with 13 fixed subjects.
 4. Open **Accounts**. `alex` and `sam` already have subjects. Press **Subjects** on a row to change them. Tell the audience: there is no self-registration, and an instructor can score only the assigned subjects.
-5. Open **Missing scores (9)** in the navigation. It lists each instructor's unsaved sets. For example, `sam` has not scored C216 General Navigation. C217 and C218 have no scores yet.
+5. Open **Missing scores (7)** in the navigation. It lists each unscored subject and the instructors who can score it. For example, nobody has scored C216 General Navigation (`sam`'s subject). C217 and C218 have no scores yet. Meteorology is listed once per group, with both `alex` and `sam`: a save by either of them clears it.
 
 **B. The first instructor scores** (private window)
 1. Sign in as `alex` with the temporary password from `seed_demo`.
