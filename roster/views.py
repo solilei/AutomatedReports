@@ -132,7 +132,7 @@ def _lifecycle_action(request, number, action):
     if error:
         messages.error(request, error)
     elif gap_count:
-        messages.warning(request, f"Locked with {gap_count} missing score set(s).")
+        messages.warning(request, f"Locked with {gap_count} missing subject(s).")
     return redirect("roster:group_detail", number=group.number)
 
 
