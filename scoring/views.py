@@ -1,4 +1,5 @@
 from io import BytesIO
+from urllib.parse import urlsplit
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -6,7 +7,9 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import admin_required
@@ -228,6 +231,27 @@ def _build_rows(group, subject, score_set, submitted=None):
     return rows
 
 
+def _return_path(request):
+    """The page to go back to after a save: the grid's referrer, carried through the form.
+
+    Only a path on this site is kept. None when unknown or when it is the grid itself;
+    the save then goes to the group page.
+    """
+    candidate = (
+        request.POST.get("next", "")
+        if request.method == "POST"
+        else request.META.get("HTTP_REFERER", "")
+    )
+    if not candidate or not url_has_allowed_host_and_scheme(
+        candidate, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return None
+    parts = urlsplit(candidate)
+    if not parts.path.startswith("/") or parts.path == request.path:
+        return None
+    return parts.path + (f"?{parts.query}" if parts.query else "")
+
+
 def _render_grid(request, group, subject, score_set, submitted=None, errors=(), warning="", fill_notice=False):
     rows = _build_rows(group, subject, score_set, submitted)
     return render(
@@ -245,6 +269,7 @@ def _render_grid(request, group, subject, score_set, submitted=None, errors=(), 
             "errors": errors,
             "warning": warning,
             "fill_notice": fill_notice,
+            "next": _return_path(request) or "",
         },
     )
 
@@ -302,8 +327,10 @@ def score_grid(request, number, subject_id):
         else:
             saved = False
     if saved:
-        messages.success(request, "Saved.")
-        return redirect("scoring:score_grid", number=group.number, subject_id=subject.pk)
+        messages.success(request, f"Saved. {group.number} – {subject.name}")
+        return redirect(
+            _return_path(request) or reverse("roster:group_detail", args=[group.number])
+        )
     # Not saved: show the page again with what the user entered.
     if not locked_group.is_editable:
         return _render_grid(

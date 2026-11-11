@@ -12,6 +12,7 @@
 <form method="post">
   {% csrf_token %}
   <input type="hidden" name="cadet_ids" value="{{ cadet_ids }}">
+  <input type="hidden" name="next" value="{{ next }}">
   <table class="score-grid">
     <thead>
       <tr>
