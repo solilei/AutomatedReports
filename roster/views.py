@@ -24,6 +24,7 @@ from .services import (
     parse_rows,
     preview_key,
     read_roster,
+    roster_kind,
 )
 
 
@@ -306,7 +307,7 @@ def upload_columns(request, pk):
     upload = get_object_or_404(RosterUpload, pk=pk)
     if closed := _closed_upload(request, upload):
         return closed
-    sheet = read_roster(bytes(upload.file_content))
+    sheet = read_roster(bytes(upload.file_content), roster_kind(upload.original_filename))
     headers, rows = sheet.headers, sheet.rows
     form = ColumnForm(headers, request.POST or None)
     errors = []

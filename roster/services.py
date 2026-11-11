@@ -1,10 +1,11 @@
+import csv
 import difflib
 import hashlib
 import json
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
-from io import BytesIO
+from io import BytesIO, StringIO
 
 from django.db import transaction
 from django.utils import timezone
@@ -70,37 +71,79 @@ def _header_index(early):
     return filled[0][0] if filled else None
 
 
-def read_roster(content):
-    """Read the first sheet. See `_header_index` for how the header row is found; rows
-    above it (titles, blank rows) are skipped. Only a Name column is required."""
+ROSTER_EXTENSIONS = (".xlsx", ".csv")
+
+
+def roster_kind(filename):
+    """"csv" for a .csv file name, else "xlsx"."""
+    return "csv" if filename.lower().endswith(".csv") else "xlsx"
+
+
+def _sheet_from_rows(rows):
+    """Find the header row (see `_header_index`) and read the rows below it."""
+    rows = iter(rows)
+    early = []  # the rows searched for the header
+    for number, row in enumerate(rows, start=1):
+        early.append(row)
+        if _is_header(row) or number >= HEADER_SEARCH_ROWS:
+            break
+    index = _header_index(early)
+    first = early[index] if index is not None else ()
+    header_row = index + 1 if index is not None else 1
+    headers = [cell_text(v) for v in first]
+    width = len(headers)
+    data = []
+    if width:
+        for row in [*early[index + 1 :], *rows]:
+            cells = [cell_text(v) for v in row[:width]]
+            data.append(cells + [""] * (width - len(cells)))
+    return Sheet(headers, data, header_row)
+
+
+def _csv_text(content):
+    """Excel saves CSV as UTF-8 (often with a BOM) or, as plain "CSV", in Windows-1252."""
+    for encoding in ("utf-8-sig", "cp1252"):
+        try:
+            return content.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    raise RosterError("The file is not UTF-8 or Windows-1252 text.")
+
+
+CSV_DELIMITERS = (",", ";", "\t")  # comma first: it wins ties
+
+
+def _csv_rows(content):
+    """Rows of a CSV file. Excel uses ";" in some regions, so the delimiter that splits the
+    first rows into the most filled cells is used."""
+    text = _csv_text(content)
+
+    def rows(delimiter):
+        return csv.reader(StringIO(text, newline=""), delimiter=delimiter)
+
+    def filled_cells(delimiter):
+        return sum(len(_filled(row)) for _, row in zip(range(HEADER_SEARCH_ROWS), rows(delimiter)))
+
+    return list(rows(max(CSV_DELIMITERS, key=filled_cells)))
+
+
+def read_roster(content, kind="xlsx"):
+    """Read an .xlsx file's first sheet, or a .csv file (`kind="csv"`). Rows above the header
+    row (titles, blank rows) are skipped. Only a Name column is required."""
     try:
+        if kind == "csv":
+            return _sheet_from_rows(_csv_rows(content))
         workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
         try:
-            rows = workbook.worksheets[0].iter_rows(values_only=True)
-            early = []  # the rows searched for the header
-            for number, row in enumerate(rows, start=1):
-                early.append(row)
-                if _is_header(row) or number >= HEADER_SEARCH_ROWS:
-                    break
-            index = _header_index(early)
-            first = early[index] if index is not None else ()
-            header_row = index + 1 if index is not None else 1
-            headers = [cell_text(v) for v in first]
-            width = len(headers)
-            data = []
-            if width:
-                for row in [*early[index + 1 :], *rows]:
-                    cells = [cell_text(v) for v in row[:width]]
-                    data.append(cells + [""] * (width - len(cells)))
+            return _sheet_from_rows(workbook.worksheets[0].iter_rows(values_only=True))
         finally:
             workbook.close()
     except Exception as exc:
         raise RosterError(str(exc)) from exc
-    return Sheet(headers, data, header_row)
 
 
-def read_sheet(content):
-    sheet = read_roster(content)
+def read_sheet(content, kind="xlsx"):
+    sheet = read_roster(content, kind)
     return sheet.headers, sheet.rows
 
 

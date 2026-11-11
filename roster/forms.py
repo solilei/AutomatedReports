@@ -6,11 +6,21 @@ from scoring.models import Programme
 from scoring.programmes import ATPL_NAME
 
 from .models import Group, RosterColumnPreference
-from .services import GROUP_NUMBER_RE, HEADER_SEARCH_ROWS, RosterError, read_sheet
+from .services import (
+    GROUP_NUMBER_RE,
+    HEADER_SEARCH_ROWS,
+    ROSTER_EXTENSIONS,
+    RosterError,
+    read_sheet,
+    roster_kind,
+)
 
 
 class UploadForm(forms.Form):
-    file = forms.FileField()
+    file = forms.FileField(
+        help_text="An .xlsx or .csv file with a Name column.",
+        widget=forms.FileInput(attrs={"accept": ",".join(ROSTER_EXTENSIONS)}),
+    )
     group_number = forms.CharField(
         label="Group number (e.g. C216)", max_length=20, strip=True
     )
@@ -55,16 +65,22 @@ class UploadForm(forms.Form):
 
     def clean_file(self):
         file = self.cleaned_data["file"]
-        if not file.name.lower().endswith(".xlsx"):
-            raise forms.ValidationError("Only .xlsx files are accepted.")
+        if not file.name.lower().endswith(ROSTER_EXTENSIONS):
+            raise forms.ValidationError("Only .xlsx and .csv files are accepted.")
         if file.size > settings.ROSTER_MAX_UPLOAD_BYTES:
             raise forms.ValidationError(
                 f"File is larger than {settings.ROSTER_MAX_UPLOAD_BYTES // 1048576} MB."
             )
         content = file.read()
+        kind = roster_kind(file.name)
         try:
-            headers, _ = read_sheet(content)
+            headers, _ = read_sheet(content, kind)
         except RosterError:
+            if kind == "csv":
+                raise forms.ValidationError(
+                    "File is not a readable .csv file. Save it from Excel as "
+                    "\"CSV UTF-8 (Comma delimited)\" and try again."
+                )
             raise forms.ValidationError("File is not a valid .xlsx workbook.")
         if not any(headers):
             raise forms.ValidationError(
