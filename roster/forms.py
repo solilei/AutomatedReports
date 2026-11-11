@@ -77,7 +77,6 @@ class UploadForm(forms.Form):
 
 class ColumnForm(forms.Form):
     name_col = forms.ChoiceField(label="Name column")
-    id_col = forms.ChoiceField(label="Cadet ID column", required=False)
 
     def __init__(self, headers, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -86,20 +85,7 @@ class ColumnForm(forms.Form):
             for i, h in enumerate(headers)
         ]
         self.fields["name_col"].choices = choices
-        self.fields["id_col"].choices = [("", "— none —")] + choices
-        pref = RosterColumnPreference.get()
         normalised = [h.strip().lower() for h in headers]
-        for field, remembered in [
-            ("name_col", pref.name_header),
-            ("id_col", pref.id_header),
-        ]:
-            remembered = remembered.strip().lower()
-            if remembered and remembered in normalised:
-                self.fields[field].initial = str(normalised.index(remembered))
-
-    def clean(self):
-        data = super().clean()
-        name, id_col = data.get("name_col"), data.get("id_col")
-        if name and id_col == name:
-            raise forms.ValidationError("Name and Cadet ID must be different columns.")
-        return data
+        remembered = RosterColumnPreference.get().name_header.strip().lower()
+        if remembered and remembered in normalised:
+            self.fields["name_col"].initial = str(normalised.index(remembered))

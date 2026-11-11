@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F
 from django.db.models.functions import Lower
 
 
@@ -15,9 +15,6 @@ class Group(models.Model):
     # The status an archived group returns to when unarchived; blank otherwise.
     status_before_archive = models.CharField(
         max_length=10, choices=Status.choices, blank=True, default=""
-    )
-    identity_mode = models.CharField(
-        max_length=4, choices=[("id", "Cadet ID"), ("name", "Name")]
     )
     programme = models.ForeignKey(
         "scoring.Programme", on_delete=models.PROTECT, related_name="groups"
@@ -38,25 +35,14 @@ class Group(models.Model):
 class Cadet(models.Model):
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="cadets")
     name = models.CharField(max_length=200)
-    external_id = models.CharField(max_length=50, blank=True, default="")
     is_active = models.BooleanField(default=True)
     position = models.PositiveIntegerField()
 
     class Meta:
         ordering = ["position", "name"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["group", "external_id"],
-                condition=~Q(external_id=""),
-                name="unique_cadet_id_per_group",
-            ),
-            # Without IDs, names identify cadets ignoring case.
-            models.UniqueConstraint(
-                F("group"),
-                Lower("name"),
-                condition=Q(external_id=""),
-                name="unique_cadet_name_per_group",
-            ),
+            # Names identify cadets within a group, ignoring case.
+            models.UniqueConstraint(F("group"), Lower("name"), name="unique_cadet_name_per_group"),
         ]
 
     def __str__(self):
@@ -73,7 +59,6 @@ class DeletedGroupNumber(models.Model):
 
 class RosterColumnPreference(models.Model):
     name_header = models.CharField(max_length=200, blank=True, default="")
-    id_header = models.CharField(max_length=200, blank=True, default="")
 
     @classmethod
     def get(cls):
@@ -93,5 +78,4 @@ class RosterUpload(models.Model):
         default="uploaded",
     )
     name_col = models.IntegerField(null=True)
-    id_col = models.IntegerField(null=True)
     parsed = models.JSONField(default=dict)

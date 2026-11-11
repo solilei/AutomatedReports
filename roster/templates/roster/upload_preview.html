@@ -16,7 +16,7 @@
   {% if change.reactivated %}<h3>Cadets returning (will be reactivated)</h3><ul>{% for n in change.reactivated %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
   {% if change.renamed %}<h3>Cadets renamed</h3><ul>{% for old, new in change.renamed %}<li>{{ old }} → {{ new }}</li>{% endfor %}</ul>{% endif %}
   {% if change.possible_respellings %}<div class="banner warning"><h3>Possible name corrections</h3>
-    <p>These look like the same cadet with a corrected name. Without a Cadet ID column, the new spelling becomes a new cadet and the old record is marked inactive; scores already entered stay with the old record. If that is wrong, fix the file and upload it again.</p>
+    <p>These look like the same cadet with a corrected name. Cadets are matched by name, so the new spelling becomes a new cadet and the old record is marked inactive; scores already entered stay with the old record. If that is wrong, fix the file and upload it again.</p>
     <ul>{% for old, new in change.possible_respellings %}<li>{{ old }} → {{ new }}</li>{% endfor %}</ul></div>{% endif %}
   <p>Unchanged: {{ change.unchanged }}</p>
 </section>

@@ -106,15 +106,6 @@ def read_sheet(content):
 
 GROUP_NUMBER_RE = re.compile(r"(?=.*[A-Za-z0-9])[A-Za-z0-9._-]{1,20}")
 NAME_MAX_LENGTH = 200  # Cadet.name
-ID_MAX_LENGTH = 50  # Cadet.external_id
-DIGITS_RE = re.compile(r"[0-9]+")
-
-
-def normalise_id(value):
-    """Digit-only IDs ignore leading zeros, so '00123' typed as text matches the number 123."""
-    if DIGITS_RE.fullmatch(value):
-        return value.lstrip("0") or "0"
-    return value
 
 
 @dataclass
@@ -124,56 +115,40 @@ class ParseResult:
 
 
 def name_key(name):
-    """Without an ID column, names identify cadets ignoring case: 'JOHN SMITH' is 'John Smith'."""
+    """Names identify cadets ignoring case: 'JOHN SMITH' is 'John Smith'."""
     return name.casefold()
 
 
-def parse_rows(rows, group_number, name_col, id_col=None, first_row=2):
+def parse_rows(rows, group_number, name_col, *, first_row=2):
     result = ParseResult()
     seen = {}
     for index, row in enumerate(rows):
         number = first_row + index
         name = " ".join(row[name_col].split())
-        external_id = normalise_id(row[id_col].strip()) if id_col is not None else ""
-        if not (name or external_id):
-            continue
-        problems = []
         if not name:
-            problems.append(f"Row {number}: name is blank.")
-        elif len(name) > NAME_MAX_LENGTH:
-            problems.append(f"Row {number}: name is longer than {NAME_MAX_LENGTH} characters.")
-        if id_col is not None and not external_id:
-            problems.append(f"Row {number}: cadet ID is blank.")
-        elif len(external_id) > ID_MAX_LENGTH:
-            problems.append(f"Row {number}: cadet ID is longer than {ID_MAX_LENGTH} characters.")
-        if problems:
-            result.errors.extend(problems)
             continue
-        result.groups.setdefault(group_number, []).append(
-            {"name": name, "external_id": external_id, "row": number}
-        )
-        key = (group_number, external_id if id_col is not None else name_key(name))
-        _, numbers = seen.setdefault(key, (external_id or name, []))
+        if len(name) > NAME_MAX_LENGTH:
+            result.errors.append(
+                f"Row {number}: name is longer than {NAME_MAX_LENGTH} characters."
+            )
+            continue
+        result.groups.setdefault(group_number, []).append({"name": name, "row": number})
+        _, numbers = seen.setdefault(name_key(name), (name, []))
         numbers.append(number)
-    for (group, _key), (value, numbers) in seen.items():
+    for value, numbers in seen.values():
         if len(numbers) < 2:
             continue
         listed = ", ".join(str(n) for n in numbers)
-        if id_col is not None:
-            result.errors.append(
-                f"Cadet ID '{value}' appears more than once in group {group} (rows {listed})."
-            )
-        else:
-            result.errors.append(
-                f"Group {group} has more than one cadet named '{value}' (rows {listed}). "
-                "Fix the file and upload it again."
-            )
+        result.errors.append(
+            f"Group {group_number} has more than one cadet named '{value}' (rows {listed}). "
+            "Fix the file and upload it again."
+        )
     if not result.groups and not result.errors:
         result.errors.append("The file contains no cadets.")
     return result
 
 
-def check_groups(group_numbers, id_mode, *, programme):
+def check_groups(group_numbers, *, programme):
     """Errors that stop an upload being applied. `programme` is the one chosen at upload;
     it is checked again here because groups and programmes can change before confirming."""
     from scoring.models import Programme
@@ -200,16 +175,6 @@ def check_groups(group_numbers, id_mode, *, programme):
                 errors.append(f"Group {number} is locked; unlock it before uploading.")
             elif group.status == Group.Status.ARCHIVED:
                 errors.append(f"Group {number} is archived and its number cannot be reused.")
-            elif group.identity_mode == "id" and not id_mode:
-                errors.append(
-                    f"Group {number} was first uploaded with a Cadet ID column; "
-                    "choose a Cadet ID column."
-                )
-            elif group.identity_mode == "name" and id_mode:
-                errors.append(
-                    f"Group {number} was first uploaded without a Cadet ID column; "
-                    "set Cadet ID to — none —."
-                )
             elif programme is None or group.programme_id != programme.pk:
                 errors.append(
                     f"Group {number} belongs to {group.programme.name}, not the programme "
@@ -245,7 +210,7 @@ class GroupChange:
     reactivated: list[str] = field(default_factory=list)
     renamed: list[tuple[str, str]] = field(default_factory=list)
     unchanged: int = 0
-    # Name mode only: (no longer present, added) pairs that look like one cadet respelled.
+    # (no longer present, added) pairs that look like one cadet respelled.
     possible_respellings: list[tuple[str, str]] = field(default_factory=list)
 
 
@@ -268,7 +233,6 @@ def _diff_group(upload, number, entries, group):
 
     The actions list holds (kind, cadet_or_None, entry, position) in file order.
     """
-    id_mode = upload.parsed["id_mode"]
     change = GroupChange(
         number=number,
         is_new=group is None,
@@ -276,11 +240,11 @@ def _diff_group(upload, number, entries, group):
     existing = {}
     if group is not None:
         for cadet in group.cadets.all():
-            existing[normalise_id(cadet.external_id) if id_mode else name_key(cadet.name)] = cadet
+            existing[name_key(cadet.name)] = cadet
     steps = []
     in_file = set()
     for position, entry in enumerate(entries, start=1):
-        key = entry["external_id"] if id_mode else name_key(entry["name"])
+        key = name_key(entry["name"])
         in_file.add(key)
         cadet = existing.get(key)
         if cadet is None:
@@ -291,7 +255,7 @@ def _diff_group(upload, number, entries, group):
             change.reactivated.append(entry["name"])
             steps.append(("reactivate", cadet, entry, position))
         elif cadet.name != entry["name"]:
-            # ID mode: any new name. Name mode: same name, different capitals.
+            # Same name, different capitals.
             change.renamed.append((cadet.name, entry["name"]))
             steps.append(("rename", cadet, entry, position))
         else:
@@ -301,8 +265,7 @@ def _diff_group(upload, number, entries, group):
         if key not in in_file and cadet.is_active:
             change.deactivated.append(cadet.name)
             steps.append(("deactivate", cadet, None, cadet.position))
-    if not id_mode:
-        change.possible_respellings = _possible_respellings(change.deactivated, change.added)
+    change.possible_respellings = _possible_respellings(change.deactivated, change.added)
     return change, steps
 
 
@@ -334,7 +297,6 @@ def apply_upload(upload, actor, actor_label=None):
 
     from .models import Cadet, Group
 
-    id_mode = upload.parsed["id_mode"]
     applied = []
     with transaction.atomic():
         # Hold the existing groups so a score save or another upload waits for this one.
@@ -353,11 +315,7 @@ def apply_upload(upload, actor, actor_label=None):
                 )
 
             if change.is_new:
-                group = Group.objects.create(
-                    programme=upload.programme,
-                    number=number,
-                    identity_mode="id" if id_mode else "name",
-                )
+                group = Group.objects.create(programme=upload.programme, number=number)
                 event(
                     actions.GROUP_CREATED,
                     f"Group {number} created",
@@ -367,12 +325,7 @@ def apply_upload(upload, actor, actor_label=None):
                 group = Group.objects.get(number=number)
             for kind, cadet, entry, position in steps:
                 if kind == "add":
-                    cadet = Cadet.objects.create(
-                        group=group,
-                        name=entry["name"],
-                        external_id=entry["external_id"],
-                        position=position,
-                    )
+                    cadet = Cadet.objects.create(group=group, name=entry["name"], position=position)
                     action, summary = actions.CADET_ADDED, f"Cadet {cadet.name} added"
                     extra = {}
                 elif kind == "deactivate":
@@ -384,9 +337,8 @@ def apply_upload(upload, actor, actor_label=None):
                     old_name = cadet.name
                     cadet.position = position
                     cadet.name = entry["name"]
-                    cadet.external_id = entry["external_id"]
                     cadet.is_active = True
-                    cadet.save(update_fields=["position", "name", "external_id", "is_active"])
+                    cadet.save(update_fields=["position", "name", "is_active"])
                     if kind == "keep":
                         continue
                     if kind == "reactivate":
@@ -397,13 +349,7 @@ def apply_upload(upload, actor, actor_label=None):
                         action = actions.CADET_RENAMED
                         summary = f"Cadet {old_name} renamed to {cadet.name}"
                         extra = {"old": old_name, "new": cadet.name}
-                event(
-                    action,
-                    f"{summary} in {number}",
-                    cadet=cadet.name,
-                    external_id=cadet.external_id,
-                    **extra,
-                )
+                event(action, f"{summary} in {number}", cadet=cadet.name, **extra)
             applied.append(number)
         upload.status = "applied"
         upload.file_content = b""

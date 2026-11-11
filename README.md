@@ -31,14 +31,11 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 
 ### Roster upload (admin)
 - **Upload.** Use one `.xlsx` file (5 MB maximum) for each group. The admin types the group number, for example `C216`. A group number can contain letters, digits, `.`, `_` and `-`.
-- **Column picker.** The site shows the header row and some sample rows. The admin selects the Name column and, if the file has one, a Cadet ID column. The site remembers this choice for the next upload. The site skips title rows above the header row.
+- **Column picker.** The site shows the header row and some sample rows. The admin selects the Name column; other columns are ignored, and a file with just one Name column works. The site remembers this choice for the next upload. The site skips title rows above the header row.
 - **Checks.** The site rejects these problems and gives the spreadsheet row number:
-  - names longer than 200 characters, or IDs longer than 50
-  - blank names or IDs
-  - duplicate IDs, or duplicate names when the file has no ID column
-- **Cadet identity:**
-  - **With an ID column:** the site matches cadets by ID. Leading zeros do not change an ID (`00123` = `123`).
-  - **Without an ID column:** the site matches cadets by name. Upper and lower case do not change a name.
+  - names longer than 200 characters
+  - duplicate names in the group (upper and lower case do not count as different)
+- **Cadet identity:** the site matches cadets by name when a group is uploaded again. Upper and lower case do not change a name. Rows with a blank name are skipped.
 - **Preview before changes.** The preview:
   - lists new cadets, cadets that are no longer in the file, returning cadets and renamed cadets
   - flags names that look like one name with a spelling change
@@ -241,7 +238,7 @@ Use a **normal browser window for the admin**. Use a **private (incognito) windo
 5. In the private window, Sam opens a C216 scoring page and changes a score, but does not save. In the normal window, press **Lock** for C216 on the group page. Sam now presses **Save**. The site saves nothing and shows "Not saved: group C216 is locked". Sam's change stays on the screen. Then press **Unlock**.
 6. Open **Manage cadets** → a cadet's **Subjects** link. Take the cadet off one subject. The cadet no longer shows in that subject's grid.
 7. Open **Upload roster**. Select the programme **ATPL**. Select `samples/sample_roster_C217.xlsx`, type the group number **C300** and press **Upload**.
-8. Select **Full Name** as the Name column and **Cadet ID** as the Cadet ID column. Press **Continue**.
+8. Select **Full Name** as the Name column. The other columns are ignored. Press **Continue**.
 9. Check the preview. Press **Confirm and apply**. C300 is now in the Home dropdown.
 10. Optional: press **Archive** on a group. You can also open **Programmes** to add a programme and its subjects. To hand the admin role to another account, run `python manage.py transferadmin --to <username>`.
 

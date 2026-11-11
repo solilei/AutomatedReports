@@ -90,12 +90,12 @@ class Command(BaseCommand):
         number = filename.split("_")[-1].split(".")[0]
         content = (settings.BASE_DIR / "samples" / filename).read_bytes()
         headers, rows = read_sheet(content)
-        result = parse_rows(rows, number, headers.index("Full Name"), headers.index("Cadet ID"))
-        errors = result.errors or check_groups(list(result.groups), True, programme=programme)
+        result = parse_rows(rows, number, headers.index("Full Name"))
+        errors = result.errors or check_groups(list(result.groups), programme=programme)
         if errors:
             raise CommandError(f"{filename}: {' '.join(errors)}")
         apply_upload(
-            _DemoUpload(filename, {"id_mode": True, "groups": result.groups}, programme),
+            _DemoUpload(filename, {"groups": result.groups}, programme),
             None,
             actor_label="seed_demo",
         )

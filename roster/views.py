@@ -263,11 +263,7 @@ def cadet_delete(request, pk):
                 actions.CADET_DELETED,
                 f"{request.user.username} deleted cadet {cadet.name} from group {group.number}",
                 group_number=group.number,
-                details={
-                    "cadet": cadet.name,
-                    "external_id": cadet.external_id,
-                    "score_rows": score_rows,
-                },
+                details={"cadet": cadet.name, "score_rows": score_rows},
             )
             cadet.delete()
         messages.success(request, f"Cadet {cadet.name} deleted.")
@@ -316,19 +312,15 @@ def upload_columns(request, pk):
     errors = []
     if request.method == "POST" and form.is_valid():
         name_col = int(form.cleaned_data["name_col"])
-        id_col = int(form.cleaned_data["id_col"]) if form.cleaned_data["id_col"] else None
-        result = parse_rows(rows, upload.group_number, name_col, id_col, sheet.first_data_row)
-        errors = result.errors or check_groups(
-            list(result.groups), id_col is not None, programme=upload.programme
-        )
+        result = parse_rows(rows, upload.group_number, name_col, first_row=sheet.first_data_row)
+        errors = result.errors or check_groups(list(result.groups), programme=upload.programme)
         if not errors:
-            upload.name_col, upload.id_col = name_col, id_col
-            upload.parsed = {"id_mode": id_col is not None, "groups": result.groups}
+            upload.name_col = name_col
+            upload.parsed = {"groups": result.groups}
             upload.status = "parsed"
             upload.save()
             pref = RosterColumnPreference.get()
             pref.name_header = headers[name_col]
-            pref.id_header = headers[id_col] if id_col is not None else ""
             pref.save()
             return redirect("roster:upload_preview", pk=upload.pk)
     return render(
@@ -372,7 +364,7 @@ def upload_preview(request, pk):
             numbers = list(upload.parsed["groups"])
             # Hold the groups so the preview checked below is what gets applied.
             list(Group.objects.select_for_update().filter(number__in=numbers))
-            errors = check_groups(numbers, upload.parsed["id_mode"], programme=upload.programme)
+            errors = check_groups(numbers, programme=upload.programme)
             changes = build_preview(upload)
             # A missing key (no browser form) skips the check; the page always sends one.
             seen_key = request.POST.get("preview_key")
@@ -395,9 +387,7 @@ def upload_preview(request, pk):
                 messages.success(request, "Roster applied.")
                 return redirect("home")
     else:
-        errors = check_groups(
-            list(upload.parsed["groups"]), upload.parsed["id_mode"], programme=upload.programme
-        )
+        errors = check_groups(list(upload.parsed["groups"]), programme=upload.programme)
         changes = build_preview(upload)
     return render(
         request,
