@@ -66,10 +66,10 @@ class UploadForm(forms.Form):
             headers, _ = read_sheet(content)
         except RosterError:
             raise forms.ValidationError("File is not a valid .xlsx workbook.")
-        if sum(1 for h in headers if h) < 2:
+        if not any(headers):
             raise forms.ValidationError(
-                "The first row must contain column headers. Title rows above it, with at most "
-                f"one filled cell, are skipped (up to {HEADER_SEARCH_ROWS} rows)."
+                "The first row must contain column headers. Only a Name column is needed; "
+                f"title rows above it are skipped (up to {HEADER_SEARCH_ROWS} rows)."
             )
         self.content = content
         return file

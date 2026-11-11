@@ -45,29 +45,51 @@ class Sheet:
         return self.header_row + 1
 
 
+def _filled(cells):
+    return [text for text in (cell_text(v) for v in cells) if text]
+
+
 def _is_header(cells):
-    return sum(1 for v in cells if cell_text(v)) >= 2
+    return len(_filled(cells)) >= 2
+
+
+def _header_index(early):
+    """Index of the header row among the first rows of the sheet, or None.
+
+    Normally the first row with two or more filled cells. A one-column roster has none, so
+    its header is the first row whose cell contains "name" (e.g. "Name", "Cadet Name"),
+    which skips title rows; failing that, the first filled row.
+    """
+    for i, row in enumerate(early):
+        if _is_header(row):
+            return i
+    filled = [(i, _filled(row)[0]) for i, row in enumerate(early) if _filled(row)]
+    for i, text in filled:
+        if "name" in text.casefold():
+            return i
+    return filled[0][0] if filled else None
 
 
 def read_roster(content):
-    """Read the first sheet. The header row is the first row with two or more filled
-    cells; rows above it with at most one filled cell (titles, blank rows) are skipped."""
+    """Read the first sheet. See `_header_index` for how the header row is found; rows
+    above it (titles, blank rows) are skipped. Only a Name column is required."""
     try:
         workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
         try:
             rows = workbook.worksheets[0].iter_rows(values_only=True)
-            first, header_row = (), 1
+            early = []  # the rows searched for the header
             for number, row in enumerate(rows, start=1):
-                if _is_header(row):
-                    first, header_row = row, number
+                early.append(row)
+                if _is_header(row) or number >= HEADER_SEARCH_ROWS:
                     break
-                if number >= HEADER_SEARCH_ROWS:
-                    break
+            index = _header_index(early)
+            first = early[index] if index is not None else ()
+            header_row = index + 1 if index is not None else 1
             headers = [cell_text(v) for v in first]
             width = len(headers)
             data = []
             if width:
-                for row in rows:
+                for row in [*early[index + 1 :], *rows]:
                     cells = [cell_text(v) for v in row[:width]]
                     data.append(cells + [""] * (width - len(cells)))
         finally:
