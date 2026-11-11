@@ -1,6 +1,8 @@
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
+from fractions import Fraction
+from math import floor
 
 from roster.models import Cadet
 from scoring.exclusions import excluded_pairs
@@ -15,6 +17,11 @@ def round_average(total: int, count: int) -> int:
     return int((Decimal(total) / Decimal(count)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
+def round_half_up(value: Fraction) -> int:
+    """Whole number, with an exact .5 rounded up (scores are positive)."""
+    return floor(value + Fraction(1, 2))
+
+
 @dataclass(frozen=True)
 class CadetResult:
     number: int
@@ -25,10 +32,15 @@ class CadetResult:
 
 
 def group_results(group, subjects=None) -> list[CadetResult]:
-    """Results across all saved score sets, or only those for `subjects` when given."""
+    """Results across all saved score sets, or only those for `subjects` when given.
+
+    Each subject counts once: when several instructors saved a set for one subject, their
+    scores are averaged into one subject score first, and the attribute average is the
+    average of the subject scores. Only the final average is rounded.
+    """
     cadets = list(Cadet.objects.filter(group=group, is_active=True).order_by("position", "name"))
-    # Every saved score set counts for every cadet who takes its subject; a missing row counts
-    # as all 3s (e.g. the cadet was added after the save). A cadet shows "no data" only when
+    # Every saved score set counts, within its subject, for every cadet who takes the subject;
+    # a missing row counts as all 3s (e.g. the cadet was added after the save). A cadet shows "no data" only when
     # no saved set covers a subject they take. A row for a subject the cadet was taken off is
     # kept in the database but ignored here.
     active_ids = {cadet.id for cadet in cadets}
@@ -39,28 +51,32 @@ def group_results(group, subjects=None) -> list[CadetResult]:
     # One query: each set joined to its rows; a set with no rows comes back once with a
     # null cadet, so it still counts.
     set_subject = {}  # set id -> subject id
-    rows = defaultdict(list)  # cadet id -> [values]
+    rows = defaultdict(lambda: defaultdict(list))  # cadet id -> subject id -> [values]
     for set_id, subject_id, cadet_id, *values in score_sets.values_list(
         "pk", "subject_id", "rows__cadet_id", *(f"rows__{f}" for f in ATTRIBUTE_FIELDS)
     ):
         set_subject[set_id] = subject_id
         if cadet_id in active_ids and (cadet_id, subject_id) not in excluded:
-            rows[cadet_id].append(values)
-    set_subjects = list(set_subject.values())
+            rows[cadet_id][subject_id].append(values)
+    sets_per_subject = Counter(set_subject.values())
 
     results = []
     for number, cadet in enumerate(cadets, start=1):
-        set_count = sum(1 for s in set_subjects if (cadet.id, s) not in excluded)
-        if set_count == 0:
+        subjects_taken = [s for s in sets_per_subject if (cadet.id, s) not in excluded]
+        if not subjects_taken:
             results.append(CadetResult(number, cadet, None, None, False))
             continue
-        cadet_rows = rows.get(cadet.id, [])
-        missing = set_count - len(cadet_rows)
+        cadet_rows = rows.get(cadet.id, {})
+
+        def subject_score(subject_id, i):
+            subject_rows = cadet_rows.get(subject_id, [])
+            missing = sets_per_subject[subject_id] - len(subject_rows)
+            total = sum(BLANK_COUNTS_AS if row[i] is None else row[i] for row in subject_rows)
+            return Fraction(total + BLANK_COUNTS_AS * missing, sets_per_subject[subject_id])
+
         averages = {
-            field: round_average(
-                sum(BLANK_COUNTS_AS if row[i] is None else row[i] for row in cadet_rows)
-                + BLANK_COUNTS_AS * missing,
-                set_count,
+            field: round_half_up(
+                sum(subject_score(s, i) for s in subjects_taken) / len(subjects_taken)
             )
             for i, field in enumerate(ATTRIBUTE_FIELDS)
         }
