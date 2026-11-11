@@ -30,9 +30,9 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
   - The site stores no password for these accounts.
 
 ### Roster upload (admin)
-- **Upload.** Use one `.xlsx` file (5 MB maximum) for each group. The admin types the group number, for example `C216`. A group number can contain letters, digits, `.`, `_` and `-`.
+- **Upload.** Use one `.xlsx` or `.csv` file (5 MB maximum) for each group. A CSV file can use commas, semicolons or tabs, in UTF-8 or Windows (Excel's "CSV") encoding. The admin types the group number, for example `C216`. A group number can contain letters, digits, `.`, `_` and `-`.
 - **Column picker.** The site shows the header row and some sample rows. The admin selects the Name column; other columns are ignored, and a file with just one Name column works. The site remembers this choice for the next upload. The site skips title rows above the header row.
-- **Checks.** The site rejects these problems and gives the spreadsheet row number:
+- **Checks.** The site rejects these problems and gives the row number in the file:
   - names longer than 200 characters
   - duplicate names in the group (upper and lower case do not count as different)
 - **Cadet identity:** the site matches cadets by name when a group is uploaded again. Upper and lower case do not change a name. Rows with a blank name are skipped.
@@ -83,16 +83,18 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
   - A save needs at least one score.
   - **Save** fills each blank cell with 3 on the screen and highlights the cells. The site saves nothing yet.
   - The instructor checks the cells and presses **Confirm and save**. A saved set never has blank cells.
+  - After a save, the site returns to the page where the instructor opened the grid: Home, the group page or **My score sets**. Without such a page (for example, a typed address), it goes to the group page.
 - **Roster changes during scoring:**
   - The grid marks cadets that an admin added after the instructor's last save: "added since your last save".
   - If the cadet list changes while the page is open, the site saves nothing. The page then shows the current list and keeps the scores and comments that you entered.
   - If an admin locks the group while the page is open, the site saves nothing. The page shows "Not saved: group … is locked" and keeps what you entered.
 - **My score sets** lists the score sets of the user who is signed in.
-- **Shared subjects.** Two instructors can score the same subject for a group. Each of them can then see the other's score set for that subject, with scores and comments. Admins can see all score sets.
+- **Shared subjects.** Two instructors can score the same subject for a group. Each of them can then see the other's score set for that subject, with scores and comments. Results count the subject once, with their scores averaged (see Results). Admins can see all score sets.
 
 ### Results
 - **Table for each group:** No., name, the six attribute averages and a Total. The Total is the sum of the six averages (6–30).
 - **Averages** are whole numbers. An average of exactly x.5 rounds up, so 2.5 counts as C.
+- **Each subject counts once.** When several instructors score one subject, the site first averages their scores into one subject score. The attribute average is then the average of the subject scores. For example, Meteorology 4 and 2 (from two instructors) and Air Law 5 give (3 + 5) / 2 = 4. Only the final average is rounded.
 - **Grade colours.** The site colours each average cell with the report's grade colour, from green (5) to red (1).
 - **Flag.** The site flags a cadet **Below C – HGS consultation** if an attribute average is below 2.5.
 - **Missing scores in results:**
@@ -103,8 +105,8 @@ More detail: [docs/RUN_LOCALLY.md](docs/RUN_LOCALLY.md) covers setup, password r
 
 ### Missing scores
 - **Rule.** Each active subject must be scored in each active group of its programme. When several instructors teach a subject, a save by any one of them clears the gap; the others may still add their own scores, and results average them. A subject is missing when no assigned instructor has saved it, or when a cadet was added after the last save and no set has a row for that cadet.
-- **Admin:** a **Missing scores (N)** link in the navigation, a page that lists each gap, and a box on each group page. Locking a group with gaps works, with a warning.
-- **Instructor:** the Home page lists the instructor's own missing scores, each with a link to the grid.
+- **Admin:** a **Missing scores (N)** link in the navigation, a page that lists each gap with the instructors who can fill it, and a **Missing subjects** box on each group page. Locking a group with gaps works, with the warning "Locked with N missing subject(s)."
+- **Instructor:** the Home page lists the instructor's subjects that nobody has scored yet, each with a link to the grid.
 
 ### Export (admin)
 - **One `.xlsx` file for each group.** The file copies the layout of the Cadet Soft Skills Report template:
@@ -232,12 +234,12 @@ Use a **normal browser window for the admin**. Use a **private (incognito) windo
 
 **D. Admin features** (normal window)
 1. Open **Missing scores**. C216 no longer appears. C217 and C218 are still listed.
-2. Open **Results** for C216. The admin sees all subjects together.
+2. Open **Results** for C216. The admin sees all subjects together. Meteorology has two score sets (Alex and Sam). The site averages them into one Meteorology score, and then averages the subjects. Thus Meteorology counts once, the same as Air Law.
 3. On the group page, press **Export report**. The browser downloads the filled-in report (`.xlsx`). Open it in Excel or LibreOffice.
 4. Open **Audit log**. It shows each score change (old value → new value), assignment and export, with who and when.
 5. In the private window, Sam opens a C216 scoring page and changes a score, but does not save. In the normal window, press **Lock** for C216 on the group page. Sam now presses **Save**. The site saves nothing and shows "Not saved: group C216 is locked". Sam's change stays on the screen. Then press **Unlock**.
 6. Open **Manage cadets** → a cadet's **Subjects** link. Take the cadet off one subject. The cadet no longer shows in that subject's grid.
-7. Open **Upload roster**. Select the programme **ATPL**. Select `samples/sample_roster_C217.xlsx`, type the group number **C300** and press **Upload**.
+7. Open **Upload roster**. Select the programme **ATPL**. Select `samples/sample_roster_C217.xlsx`, type the group number **C300** and press **Upload**. A `.csv` copy of a roster works the same way.
 8. Select **Full Name** as the Name column. The other columns are ignored. Press **Continue**.
 9. Check the preview. Press **Confirm and apply**. C300 is now in the Home dropdown.
 10. Optional: press **Archive** on a group. You can also open **Programmes** to add a programme and its subjects. To hand the admin role to another account, run `python manage.py transferadmin --to <username>`.
@@ -293,7 +295,7 @@ All settings are environment variables. The default values suit a local proof of
 | `LOGIN_MODE` | `local` | `local`, `microsoft` or `both`. Keep `local`. Microsoft sign-in needs an app registration from IT, and that work is on hold with hosting. |
 | `MFA_REQUIRED` | `True` | Ask for an authenticator-app code at local sign-in. |
 | `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`, `ENTRA_REDIRECT_URI` | empty | The Microsoft Entra settings. They are necessary when `LOGIN_MODE` is `microsoft` or `both`. |
-| `ROSTER_MAX_UPLOAD_BYTES` | `5242880` (5 MB) | The largest roster `.xlsx` file that the site accepts. |
+| `ROSTER_MAX_UPLOAD_BYTES` | `5242880` (5 MB) | The largest roster file (`.xlsx` or `.csv`) that the site accepts. |
 
 ## Fake data only
 
