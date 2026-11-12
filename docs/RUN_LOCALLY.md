@@ -208,3 +208,4 @@ Each time an admin opens the upload page, the site discards unfinished roster up
 | "Too many failed sign-in attempts" | Wait 15 minutes, or ask an admin to press *Reset* on the account (section 11). |
 | The site always rejects the authenticator code | Make sure that the phone sets its clock automatically. The codes depend on the exact time. |
 | The site signed you out | A session ends after 30 minutes without activity, or when the browser closes. |
+| Roster upload shows "This site can't be reached" with `ERR_ACCESS_DENIED` | The browser did not send the file, and the terminal shows no `POST /roster/upload/` line. A browser extension or a browser security setting can block the upload. Try the upload in a private window, where extensions are off, or in a different browser. |
